@@ -1,8 +1,5 @@
-import { comparePassword } from './../utils/bcrypt.utilis';
-import {Document} from 'mongoose';
 import { Role } from './../types/enum.types';
 import mongoose from "mongoose";
-import bcrypt from 'bcryptjs';
 
 // interface IUser extends Document{
 //   full_name: string,
