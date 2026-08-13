@@ -11,6 +11,7 @@ import { sendResponse } from "../utils/sendResponse.utils";
 import { catchAsync } from "../utils/catchAsync.utils";
 import { comparePassword, hashPassword } from "../utils/bcrypt.utilis";
 import { generateJwtToken } from "../utils/jwt.utilis";
+import { WorkerProfile } from "../models/worker.model";
 
 const folder = "/profile_image";
 export const Register = catchAsync(async (req: Request, res: Response) => {
@@ -130,4 +131,15 @@ export const logout = catchAsync(async (req:Request, res:Response) => {
   statusCode: 200,
   data: null,
   })
+})
+
+export const beWorker = catchAsync(async(req: Request, res: Response) => {
+  const userId = req.user!._id;
+
+  const existing = await WorkerProfile.findOne({ user: userId});
+  if(existing){
+    throw new AppError("You are already registered as worker", 400);
+  }
+
+  const workerProfile = new WorkerProfile({...req.body})
 })
