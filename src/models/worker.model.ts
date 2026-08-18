@@ -12,6 +12,14 @@ const workerSchema = new mongoose.Schema({
         type: [String],
         required: [true, "skills is required"],
     },
+    experience: {
+        type: Number,
+        required: true
+    },
+    bio: {
+        type: String,
+        required: [5, "atleast 5 lettters"]
+    },
     hourlyRate: {type: Number},
     serviceRadiusKm: {type: Number},
     isVerified: { type: Boolean, default: false},

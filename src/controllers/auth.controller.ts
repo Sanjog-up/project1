@@ -15,13 +15,8 @@ import { WorkerProfile } from "../models/worker.model";
 
 const folder = "/profile_image";
 export const Register = catchAsync(async (req: Request, res: Response) => {
-  const { full_name, email, password, phone, role } = req.body;
+  const { full_name, email, password, phone } = req.body ;
   const image = req.file;
-
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    throw new AppError("Email already registered", 400);
-  }
   if (!full_name) {
     throw new AppError("full_name is required", 400);
   }
@@ -32,9 +27,20 @@ export const Register = catchAsync(async (req: Request, res: Response) => {
     throw new AppError("password is required", 400);
   }
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if(!emailRegex.test(email)){
+    throw new AppError("please provide a valid email address", 400);
+  }
+  const loweredEmail = email.toLowerCase();
+
+  const existingUser = await User.findOne({ email: loweredEmail.toLowerCase()});
+  if(existingUser){
+    throw new AppError("Email already registered", 400);
+  }
+
   const hashedPassword = await hashPassword(password);
 
-  const user = new User({ full_name, email, password:hashedPassword, phone, role});
+  const user = new User({ full_name, email: loweredEmail, password:hashedPassword, phone});
 
   if (image) {
     const { path, public_id } = await sendFileToCloudinary(image, folder);
@@ -76,15 +82,15 @@ export const login = catchAsync(async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   if (!email) {
-    throw new AppError("email is required", 404);
+    throw new AppError("email is required", 400);
   }
   if (!password) {
-    throw new AppError("password is required", 404);
+    throw new AppError("password is required", 400);
   }
 
-  const user = await User.findOne({ email: email });
+  const user = await User.findOne({ email: email.tolowerCase() });
   if (!user) {
-    throw new AppError("email or password does not matched", 400);
+    throw new AppError("email or password does not match", 400);
   }
 
   const isPasswordMathed = await comparePassword(password, user.password);
@@ -99,6 +105,7 @@ export const login = catchAsync(async (req: Request, res: Response) => {
     email: user.email,
     role: user.role,
   };
+
   const access_token = generateJwtToken(payload);
 
   //* send access_token in cookie
@@ -126,20 +133,40 @@ export const logout = catchAsync(async (req:Request, res:Response) => {
     sameSite: ENV_CONFIG.node_env === "development" ? "lax" : "none",
     path: "/",
   });
+
   sendResponse(res,{
   message: "Logged out successfully",
   statusCode: 200,
   data: null,
   })
-})
+});
 
 export const beWorker = catchAsync(async(req: Request, res: Response) => {
   const userId = req.user!._id;
 
+  //* checking user has worjer profile 
   const existing = await WorkerProfile.findOne({ user: userId});
   if(existing){
     throw new AppError("You are already registered as worker", 400);
   }
 
-  const workerProfile = new WorkerProfile({...req.body})
+  const { skills, experience, bio, hourlyRate, serviceRadiusKm , location } = req.body;
+
+  const workerProfile = await WorkerProfile.create({
+    user: userId,
+    skills: skills || [],
+    experience : experience || 0,
+    bio: bio || "",
+    hourlyRate: hourlyRate || 150,
+    serviceRadiusKm: serviceRadiusKm || 10,
+    location: location
+  });
+
+  await User.findByIdAndUpdate(userId, {role: "worker"});
+
+  sendResponse(res, {
+    message: "Successfully registered as worker",
+    data: workerProfile,
+    statusCode: 201,
+  })
 })
