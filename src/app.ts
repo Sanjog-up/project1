@@ -8,6 +8,7 @@ import authRoutes from "./routes/auth.routes";
 import AppError from "./utils/appError.utils";
 import { errorHandler } from "./middlewares/errorHandler";
 import { notFoundMiddleware } from "./middlewares/notFound.middleware";
+import ENV_CONFIG from "./config/env.config";
 
 const app = express();
 
@@ -15,7 +16,7 @@ const app = express();
 app.use(cookieParser());
 
 app.use(express.json({ limit: "10mb" }));
-app.use(cors());
+app.use(cors({ origin: ENV_CONFIG.allow_origin, credentials: true }));
 
 // Health check
 app.get("/", (req: Request, res: Response) => {

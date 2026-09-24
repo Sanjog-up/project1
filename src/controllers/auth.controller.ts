@@ -88,7 +88,7 @@ export const login = catchAsync(async (req: Request, res: Response) => {
     throw new AppError("password is required", 400);
   }
 
-  const user = await User.findOne({ email: email.tolowerCase() });
+  const user = await User.findOne({ email: email.toLowerCase() });
   if (!user) {
     throw new AppError("email or password does not match", 400);
   }
