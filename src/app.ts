@@ -6,6 +6,8 @@ import cookieParser from "cookie-parser";
 import userRoutes from "./routes/user.routes";
 import authRoutes from "./routes/auth.routes";
 import AppError from "./utils/appError.utils";
+import { errorHandler } from "./middlewares/errorHandler";
+import { notFoundMiddleware } from "./middlewares/notFound.middleware";
 
 const app = express();
 
@@ -29,23 +31,8 @@ app.get("/", (req: Request, res: Response) => {
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 
-//! error path middleware
-app.use((req: Request, res: Response) => {
-  const message = `Can't find ${req.originalUrl} on this server!`;
-  throw new AppError(message, 404);
-});
+//! path not found error middleware
+app.use(notFoundMiddleware);
 
-app.use((err: AppError, req: Request, res: Response, next: NextFunction) => {
-  const statusCode = (err as AppError).statusCode || 500;
-  const status = (err as AppError).status || "error";
-  const message = err.message || "Internal Server Error";
-
-  console.log(err);
-  
-  res.status(statusCode).json({
-    status,
-    message,
-    success: false,
-  });
-});
+app.use(errorHandler);
 export default app;
