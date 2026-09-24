@@ -1,5 +1,5 @@
 import express from "express";
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
@@ -35,5 +35,17 @@ app.use((req: Request, res: Response) => {
   throw new AppError(message, 404);
 });
 
+app.use((err: AppError, req: Request, res: Response, next: NextFunction) => {
+  const statusCode = (err as AppError).statusCode || 500;
+  const status = (err as AppError).status || "error";
+  const message = err.message || "Internal Server Error";
 
+  console.log(err);
+  
+  res.status(statusCode).json({
+    status,
+    message,
+    success: false,
+  });
+});
 export default app;
