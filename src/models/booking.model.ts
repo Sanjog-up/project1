@@ -60,6 +60,7 @@ const bookingSchema = new Schema<IBooking>(
 );
 
 bookingSchema.index({ location: "2dsphere" });
-bookingSchema.index({ customer: 1, worker: 1, scheduledAt: 1 }, { unique: true });  
-bookingSchema.index({ worker: 1, status: 1, scheduledAt: 1 });
+bookingSchema.index({ customer: 1, status: 1});  
+bookingSchema.index({ worker: 1, status: 1 });
+
 export const Booking = model<IBooking>("Booking", bookingSchema);
