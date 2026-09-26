@@ -8,14 +8,14 @@ import mongoose from "mongoose";
 //! createbooking 
 export const createBooking = catchAsync(async (req: Request, res: Response) => {
     const { serviceType, description, location, scheduledAt } = req.body;
-    const userId = req.user!._id; 
+    const customerId = req.user!._id; 
 
-    if(!serviceType || !location || !location.address || !location.coordinates) {
+    if(!serviceType || !location?.address || !location?.coordinates) {
         throw new AppError("Missing required fields: serviceType, location.address, location.coordinates", 400);
     }
 
     const booking = await Booking.create({
-        customer: userId,
+        customer: customerId,
         serviceType,
         description,
         location,

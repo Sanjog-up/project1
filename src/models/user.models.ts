@@ -1,18 +1,6 @@
 import { Role } from './../types/enum.types';
 import mongoose from "mongoose";
 
-// interface IUser extends Document{
-//   full_name: string,
-//   email:string;
-//   password:string,
-//   phone?: string,
-//   role: string,
-//   profile_image?: {
-//     path: string,
-//     public_id: string,
-//   },
-//   comparePassword(candidatePassword: string): Promise<boolean>;
-// }
 
 const userSchema = new mongoose.Schema(
   {
