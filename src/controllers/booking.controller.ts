@@ -5,6 +5,31 @@ import { sendResponse } from "../utils/sendResponse.utils";
 import AppError from "../utils/appError.utils";
 import mongoose from "mongoose";
 
+//! createbooking 
+export const createBooking = catchAsync(async (req: Request, res: Response) => {
+    const { serviceType, description, location, scheduledAt } = req.body;
+    const userId = req.user!._id; 
+
+    if(!serviceType || !location || !location.address || !location.coordinates) {
+        throw new AppError("Missing required fields: serviceType, location.address, location.coordinates", 400);
+    }
+
+    const booking = await Booking.create({
+        customer: userId,
+        serviceType,
+        description,
+        location,
+        scheduledAt,
+    });
+
+    sendResponse(res, {
+        message: "Booking created successfully",
+        data: booking,
+        statusCode: 201
+    });
+});
+
+
 export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
     const { id } = req.params;
     const workerId = req.user!._id;
@@ -29,3 +54,4 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
         statusCode: 200
     });
 });
+
