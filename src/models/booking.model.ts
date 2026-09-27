@@ -29,7 +29,7 @@ export interface IBooking extends Document {
 const bookingSchema = new Schema<IBooking>(
   {
     customer: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    worker: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    worker: { type: Schema.Types.ObjectId, ref: "User"},
     serviceType: { type: String, required: true, trim: true }, // e.g. "Electrician"
     description: { type: String, trim: true },
     status: {

@@ -9,6 +9,7 @@ import AppError from "./utils/appError.utils";
 import { errorHandler } from "./middlewares/errorHandler";
 import { notFoundMiddleware } from "./middlewares/notFound.middleware";
 import ENV_CONFIG from "./config/env.config";
+import bookingRoutes from "./routes/booking.routes";
 
 const app = express();
 
@@ -31,6 +32,8 @@ app.get("/", (req: Request, res: Response) => {
 // Highlight: these mounts were missing before
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/bookings", bookingRoutes);
+
 
 //! path not found error middleware
 app.use(notFoundMiddleware);

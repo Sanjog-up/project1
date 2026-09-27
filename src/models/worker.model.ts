@@ -57,5 +57,5 @@ workerSchema.pre("save", async function() {
         }
     }
 });
- 
+
 export const WorkerProfile = mongoose.model("WorkerProfile", workerSchema);
