@@ -123,7 +123,7 @@ export const login = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-//* logout
+//! logout
 export const logout = catchAsync(async (req:Request, res:Response) => {
   
   res.clearCookie("access_token", {
@@ -141,6 +141,7 @@ export const logout = catchAsync(async (req:Request, res:Response) => {
   })
 });
 
+//! sign up as worker 
 export const beWorker = catchAsync(async(req: Request, res: Response) => {
   const userId = req.user!._id;
 

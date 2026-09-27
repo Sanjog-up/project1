@@ -1,5 +1,5 @@
 import express from "express";
-import { login, logout, Register } from "../controllers/auth.controller";
+import { beWorker, login, logout, Register } from "../controllers/auth.controller";
 import multer from "multer";
 
 const router = express.Router();
@@ -16,5 +16,8 @@ router.post("/login", login);
 
 // @desc Logout
 router.post("/logout", logout);
+
+//! be worker 
+router.post("/be-worker", beWorker);
 
 export default router;
