@@ -12,6 +12,7 @@ import { catchAsync } from "../utils/catchAsync.utils";
 import { comparePassword, hashPassword } from "../utils/bcrypt.utilis";
 import { generateJwtToken } from "../utils/jwt.utilis";
 import { WorkerProfile } from "../models/worker.model";
+import { Role } from "../types/enum.types";
 
 const folder = "/profile_image";
 export const Register = catchAsync(async (req: Request, res: Response) => {
@@ -153,17 +154,34 @@ export const beWorker = catchAsync(async(req: Request, res: Response) => {
 
   const { skills, experience, bio, hourlyRate, serviceRadiusKm , location } = req.body;
 
-  const workerProfile = await WorkerProfile.create({
-    user: userId,
-    skills: skills || [],
-    experience : experience || 0,
-    bio: bio || "",
-    hourlyRate: hourlyRate || 150,
-    serviceRadiusKm: serviceRadiusKm || 10,
-    location: location
-  });
+  if(!Array.isArray(skills) || skills.length === 0){
+    throw new AppError("skills must be a non-empty array", 400);
+  }
+  if(!bio || bio.length < 25){
+    throw new AppError("bio is required and must be at least 25 characters long", 400);
+  }
+  if(!location){
+    throw new AppError("location must be provided with valid coordinates [lng, lat]", 400);
+  }
 
-  await User.findByIdAndUpdate(userId, {role: "worker"});
+  await User.findByIdAndUpdate(userId, { role: Role.WORKER }, { runValidators: true });
+
+  let workerProfile;
+  try {
+    workerProfile = await WorkerProfile.create({
+      user: userId,
+      skills,
+      experience: experience || 0,
+      bio,
+      hourlyRate: hourlyRate || 150,
+      serviceRadiusKm: serviceRadiusKm || 10,
+      location,
+    });
+  } catch (err) {
+    // Rollback user role update if worker profile creation fails
+    await User.findByIdAndUpdate(userId, { role: Role.USER });
+    throw err;
+  }
 
   sendResponse(res, {
     message: "Successfully registered as worker",

@@ -31,7 +31,7 @@ const signInWithToken = (token: string) => {
   try {
     const decoded = jwt.verify(token, ENV_CONFIG.jwt_secret as string) as any;
 
-    // decoded may include exp. If missing, let it pass.
+    // decoded may include exp.
     if (decoded?.exp && Date.now() >= decoded.exp * 1000) {
       throw new AppError("Token expired", 401);
     }
@@ -49,7 +49,6 @@ const signInWithToken = (token: string) => {
 
     return payload;
   } catch (err: any) {
-    // normalize
     throw new AppError(err?.message || "Not authorized", 401);
   }
 };
