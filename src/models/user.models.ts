@@ -33,6 +33,7 @@ const userSchema = new mongoose.Schema(
       enum: Object.values(Role),
       default: Role.USER,
     },
+
   
   //! profile image:{path: ``,public_id:``}
   profile_image:{
@@ -48,7 +49,14 @@ const userSchema = new mongoose.Schema(
     }
   } ,
   },
-  { timestamps: true },
+  { timestamps: true ,
+    toJSON: { 
+      transform: (_doc, ret: any) => {
+        const { password, ...safeRet } = ret;
+        return safeRet;
+      },
+    },
+  },
 )
 
 const User = mongoose.model("User", userSchema);

@@ -1,13 +1,14 @@
 import express from "express";
 import { getAllUsers, getUsersById } from "../controllers/user.controller";
-import { protect } from "../middlewares/auth.middleware";
+import { authenticate, protect } from "../middlewares/auth.middleware";
+import { Role } from "../types/enum.types";
 
 const router = express.Router();
 
 //! get all (protected)
-router.get("/", protect, getAllUsers);
+router.get("/", authenticate([Role.ADMIN]), getAllUsers);
 
 //! get by id (protected)
-router.get("/:id", protect, getUsersById);
+router.get("/:id", authenticate([Role.ADMIN]), getUsersById);
 
 export default router;
