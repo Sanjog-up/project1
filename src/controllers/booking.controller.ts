@@ -3,7 +3,7 @@ import { Booking, BookingStatus } from "../models/booking.model";
 import { catchAsync } from "../utils/catchAsync.utils";
 import { sendResponse } from "../utils/sendResponse.utils";
 import AppError from "../utils/appError.utils";
-import mongoose from "mongoose";
+import { Role } from "../types/enum.types";
 
 //! createbooking 
 export const createBooking = catchAsync(async (req: Request, res: Response) => {
@@ -58,7 +58,10 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
 //! get all bookings
 export const getAllBookings = catchAsync(async (req: Request, res: Response) => {
     const userId = req.user!._id;
-    const bookings = await Booking.find({ customer: userId });
+    const role = req.user!.role;
+
+    const filter = role === Role.WORKER ? { worker: userId } : { customer: userId };
+    const bookings = await Booking.find(filter);
     sendResponse(res, {
         message: "All bookings fetched",
         data: bookings,
