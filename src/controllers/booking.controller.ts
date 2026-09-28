@@ -55,3 +55,13 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
     });
 });
 
+//! get all bookings
+export const getAllBookings = catchAsync(async (req: Request, res: Response) => {
+    const userId = req.user!._id;
+    const bookings = await Booking.find({ customer: userId });
+    sendResponse(res, {
+        message: "All bookings fetched",
+        data: bookings,
+        statusCode: 200
+    });
+}); 
