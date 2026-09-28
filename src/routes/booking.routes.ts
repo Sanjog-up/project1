@@ -1,5 +1,5 @@
 import express from "express";
-import { createBooking, acceptBooking } from "../controllers/booking.controller";
+import { createBooking, acceptBooking, getAllBookings } from "../controllers/booking.controller";
 import { authenticate } from "../middlewares/auth.middleware";
 import { Role } from "../types/enum.types";
 
@@ -10,5 +10,8 @@ router.post("/", authenticate([Role.CLIENT]), createBooking);
 
 //! accept booking
 router.patch("/:id/accept", authenticate([Role.WORKER]), acceptBooking);
+
+//! get all bookings (authenticated)
+router.get("/", authenticate([Role.CLIENT, Role.WORKER]), getAllBookings); 
 
 export default router;
