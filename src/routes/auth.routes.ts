@@ -5,7 +5,7 @@ import { multerUploader } from "../middlewares/mutlter.middleware";
 
 const router = express.Router();
 
-const upload = multerUploader();
+const upload = multerUploader({ allowPdf: true, maxSizeMB: 10 });
 
 //! Register
 router.post("/register", upload.single("image"), Register);
