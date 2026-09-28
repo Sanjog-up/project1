@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import AppError from "../utils/appError.utils";
+import fs from "fs";
 
 export const errorHandler = (
     error: AppError | Error | any,
@@ -13,6 +14,16 @@ export const errorHandler = (
 
     console.log(error.name);
     console.log(error.message);
+
+    //! remove leftover uploads if request failed
+    const leftoverFiles = [req.file,
+        ...(Array.isArray(req.files) ? req.files : []),
+    ].filter(Boolean) as Express.Multer.File[];
+    for (const file of leftoverFiles) {
+        if(file.path && fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+        }
+    }
 
     //! validation error
     if (error.name === "ValidationError") {
@@ -37,5 +48,4 @@ export const errorHandler = (
         message,
         success: false,
     });
-}; 
-    
+};

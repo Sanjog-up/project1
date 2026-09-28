@@ -5,7 +5,7 @@ import AppError from "../utils/appError.utils";
 
 export const multerUploader = () => {
     //! upload folder 
-    const uploadFolder = path.join(process.cwd(), "uploadss");
+    const uploadFolder = path.join(process.cwd(), "uploads");
     const fileSize = 10 * 1024 * 1024
     //! create folder if doesnt exists 
     if(!fs.existsSync(uploadFolder)){
