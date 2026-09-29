@@ -6,24 +6,55 @@ import AppError from "../utils/appError.utils";
 import { Role } from "../types/enum.types";
 import mongoose from "mongoose";
 
+const getPagination = (query: Request["query"]) => {
+  const page = Math.max(Number(query.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50);
+  return { page, limit, skip: (page - 1) * limit};
+};
+
 //! createbooking
 export const createBooking = catchAsync(async (req: Request, res: Response) => {
-  const { serviceType, description, location, scheduledAt } = req.body;
-  const customerId = req.user!._id;
+  if(req.user!.role !== Role.CLIENT) {
+    throw new AppError("Only clients can create bookings", 403);
+  }
 
+  const { serviceType, description, location, scheduledAt } = req.body;
   if (!serviceType || !location?.address || !location?.coordinates) {
     throw new AppError(
       "Missing required fields: serviceType, location.address, location.coordinates",
       400,
     );
   }
+
+  const [lng, lat] = location.coordinates;
+  if(location.coordinates.length !== 2 || typeof lng !== "number" || typeof lat !== "number"
+    || lng < -180 || lng > 180 || lat < -90 || lat > 90) {
+    throw new AppError(
+      "Invalid coordinates. Must be an array of two numbers [lng, lat] with valid ranges.",
+      400,
+    );
+  }
+
+  let scheduledDate: Date | undefined;
+  if (scheduledAt) {
+    scheduledDate = new Date(scheduledAt);
+    if (isNaN(scheduledDate.getTime()) || scheduledDate < new Date()) {
+      throw new AppError("Invalid scheduledAt date", 400);
+    }
+  }
+  
   const booking = await Booking.create({
-    customer: customerId,
+    customer: req.user!._id,
     serviceType,
     description,
-    location,
-    scheduledAt,
+    location:{
+      type: "Point",
+      coordinates: [lng, lat],
+      address: location.address,
+    },
+    scheduledAt: scheduledAt ,
   });
+  
   sendResponse(res, {
     message: "Booking created successfully",
     data: booking,
@@ -66,8 +97,7 @@ export const getAllBookings = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.user!._id;
     const role = req.user!.role;
-    const page = Math.max(Number(req.query.page) || 1, 1);
-    const limit = Math.max(Number(req.query.limit) || 10, 50);
+    const { page, limit, skip } = getPagination(req.query);
 
     const filter: Record<string, unknown> =
       role === Role.WORKER ? { worker: userId } : { customer: userId };
