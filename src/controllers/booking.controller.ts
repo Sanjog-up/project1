@@ -9,12 +9,12 @@ import mongoose from "mongoose";
 const getPagination = (query: Request["query"]) => {
   const page = Math.max(Number(query.page) || 1, 1);
   const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50);
-  return { page, limit, skip: (page - 1) * limit};
+  return { page, limit, skip: (page - 1) * limit };
 };
 
 //! createbooking
 export const createBooking = catchAsync(async (req: Request, res: Response) => {
-  if(req.user!.role !== Role.CLIENT) {
+  if (req.user!.role !== Role.CLIENT) {
     throw new AppError("Only clients can create bookings", 403);
   }
 
@@ -27,8 +27,15 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   }
 
   const [lng, lat] = location.coordinates;
-  if(location.coordinates.length !== 2 || typeof lng !== "number" || typeof lat !== "number"
-    || lng < -180 || lng > 180 || lat < -90 || lat > 90) {
+  if (
+    location.coordinates.length !== 2 ||
+    typeof lng !== "number" ||
+    typeof lat !== "number" ||
+    lng < -180 ||
+    lng > 180 ||
+    lat < -90 ||
+    lat > 90
+  ) {
     throw new AppError(
       "Invalid coordinates. Must be an array of two numbers [lng, lat] with valid ranges.",
       400,
@@ -42,17 +49,17 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
       throw new AppError("Invalid scheduledAt date", 400);
     }
   }
-  
+
   const booking = await Booking.create({
     customer: req.user!._id,
     serviceType,
     description,
-    location:{
+    location: {
       type: "Point",
       coordinates: [lng, lat],
       address: location.address,
     },
-    scheduledAt: scheduledAt ,
+    scheduledAt: scheduledAt,
   });
 
   sendResponse(res, {
@@ -62,9 +69,16 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+//! accept booking
 export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
+  if (req.user!.role !== Role.WORKER) {
+    throw new AppError("Only workers can accept bookings", 403);
+  }
+
   const { id } = req.params;
-  const workerId = req.user!._id;
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError("Invalid booking ID", 400);
+  }
 
   const booking = await Booking.findOneAndUpdate(
     {
@@ -74,7 +88,7 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
     {
       $set: {
         status: BookingStatus.Accepted,
-        worker: workerId,
+        worker: req.user!._id,
       },
     },
     { new: true },
@@ -95,16 +109,16 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
 //! get available bookings for workers
 export const getAvailableBookings = catchAsync(
   async (req: Request, res: Response) => {
-    if(req.user!.role !== Role.WORKER) {
+    if (req.user!.role !== Role.WORKER) {
       throw new AppError("Only workers can view available bookings", 403);
     }
 
     const { page, limit, skip } = getPagination(req.query);
     const filter: Record<string, unknown> = { status: BookingStatus.Requested };
-    if(req.query.serviceType) {
+    if (req.query.serviceType) {
       filter.serviceType = req.query.serviceType;
     }
-    
+
     const [bookings, total] = await Promise.all([
       Booking.find(filter)
         .sort({ createdAt: -1 })
@@ -123,15 +137,17 @@ export const getAvailableBookings = catchAsync(
   },
 );
 
-//! get all bookings
+//! get my bookings
 export const getAllBookings = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.user!._id;
     const role = req.user!.role;
     const { page, limit, skip } = getPagination(req.query);
 
-    const filter: Record<string, unknown> =
-      role === Role.WORKER ? { worker: userId } : { customer: userId };
+    let filter: Record<string, unknown>;
+    if (role === Role.WORKER) filter = { worker: userId };
+    else if (role === Role.CLIENT) filter = { customer: userId };
+    else throw new AppError("Unauthorized role for fetching bookings", 403);
 
     const status = req.query.status as string | undefined;
     if (status) {
@@ -150,10 +166,10 @@ export const getAllBookings = catchAsync(
         .lean(),
       Booking.countDocuments(filter),
     ]);
-    
+
     sendResponse(res, {
       message: "All bookings fetched",
-      data: {bookings, total, page, pages: Math.ceil(total / limit)},
+      data: { bookings, total, page, pages: Math.ceil(total / limit) },
       statusCode: 200,
     });
   },
