@@ -54,7 +54,7 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     },
     scheduledAt: scheduledAt ,
   });
-  
+
   sendResponse(res, {
     message: "Booking created successfully",
     data: booking,
@@ -91,6 +91,37 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
     statusCode: 200,
   });
 });
+
+//! get available bookings for workers
+export const getAvailableBookings = catchAsync(
+  async (req: Request, res: Response) => {
+    if(req.user!.role !== Role.WORKER) {
+      throw new AppError("Only workers can view available bookings", 403);
+    }
+
+    const { page, limit, skip } = getPagination(req.query);
+    const filter: Record<string, unknown> = { status: BookingStatus.Requested };
+    if(req.query.serviceType) {
+      filter.serviceType = req.query.serviceType;
+    }
+    
+    const [bookings, total] = await Promise.all([
+      Booking.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("customer", "name")
+        .lean(),
+      Booking.countDocuments(filter),
+    ]);
+
+    sendResponse(res, {
+      message: "Available bookings fetched",
+      data: { bookings, total, page, pages: Math.ceil(total / limit) },
+      statusCode: 200,
+    });
+  },
+);
 
 //! get all bookings
 export const getAllBookings = catchAsync(
