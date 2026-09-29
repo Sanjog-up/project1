@@ -28,9 +28,16 @@ export interface IBooking extends Document {
 
 const bookingSchema = new Schema<IBooking>(
   {
-    customer: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    worker: { type: Schema.Types.ObjectId, ref: "User"},
-    serviceType: { type: String, required: true, trim: true }, // e.g. "Electrician"
+    customer: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    worker: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    serviceType: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
     status: {
       type: String,
@@ -40,12 +47,12 @@ const bookingSchema = new Schema<IBooking>(
     location: {
       address: { type: String, required: true },
       coordinates: {
-        type: [Number], // [lng, lat]
+        type: { type: String, enum: ["Point"], default: "Point" }, // [lng, lat]
         required: true,
         validate: {
           validator: (coords: number[]) => coords.length === 2,
           message: "Coordinates must be an array of two numbers [lng, lat]",
-        }
+        },
       },
     },
     scheduledAt: { type: Date },
@@ -56,11 +63,11 @@ const bookingSchema = new Schema<IBooking>(
       default: "Pending",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 bookingSchema.index({ location: "2dsphere" });
-bookingSchema.index({ customer: 1, status: 1});  
+bookingSchema.index({ customer: 1, status: 1 });
 bookingSchema.index({ worker: 1, status: 1 });
 
 export const Booking = model<IBooking>("Booking", bookingSchema);
