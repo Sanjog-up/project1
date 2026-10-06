@@ -11,11 +11,12 @@ export enum BookingStatus {
 
 export interface IBooking extends Document {
   customer: Types.ObjectId;
-  worker: Types.ObjectId;
+  worker?: Types.ObjectId;
   serviceType: string;
   description?: string;
   status: BookingStatus;
   location: {
+    type: "Point";
     address: string;
     coordinates: [number, number]; // [lng, lat]
   };
@@ -45,15 +46,16 @@ const bookingSchema = new Schema<IBooking>(
       default: BookingStatus.Requested,
     },
     location: {
-      address: { type: String, required: true },
+      type: { type: String, enum: ["Point"], default: "Point" }, 
       coordinates: {
-        type: { type: String, enum: ["Point"], default: "Point" }, // [lng, lat]
+        type: [Number],
         required: true,
         validate: {
           validator: (coords: number[]) => coords.length === 2,
           message: "Coordinates must be an array of two numbers [lng, lat]",
         },
       },
+      address: { type: String, required: true },
     },
     scheduledAt: { type: Date },
     price: { type: Number, min: [0, "Price cannot be negative"] },

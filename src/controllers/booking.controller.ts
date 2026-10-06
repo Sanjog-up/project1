@@ -12,7 +12,7 @@ const getPagination = (query: Request["query"]) => {
   return { page, limit, skip: (page - 1) * limit };
 };
 const DEFAULT_RADIUS_KM = 5;
-const MAX_RADIUS_KM = 50;
+const MAX_RADIUS_KM = 25;
 const POOL_LIMIT = 20;
 
 //! createbooking
@@ -116,6 +116,14 @@ export const getAvailableBookings = catchAsync(async (req: Request, res: Respons
     }
     const lng = Number(req.query.lng);
     const lat = Number(req.query.lat);
+    if(
+      req.query.lng === undefined || req.query.lat === undefined ||
+      req.query.lng === null || req.query.lat === null ||
+      !Number.isFinite(lng) || !Number.isFinite(lat) ||
+      lng < -180 || lng > 180 || lat < -90 || lat > 90
+    ) {
+      throw new AppError("Invalid or missing coordinates", 400);
+    }
 
     const radiusKm = Math.min(
       Math.max(Number(req.query.radius) || DEFAULT_RADIUS_KM, 1),
@@ -137,7 +145,7 @@ export const getAvailableBookings = catchAsync(async (req: Request, res: Respons
 
     const bookings = await Booking.find(filter)
     .limit(POOL_LIMIT)
-    .populate("customer", "name phone")
+    .populate("customer", "name ")
     .lean();
     sendResponse(res, {
       message: "Available bookings fetched",
@@ -169,7 +177,7 @@ export const getAllBookings = catchAsync(async (req: Request, res: Response) => 
     const [bookings, total] = await Promise.all([
       Booking.find(filter)
         .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
+        .skip(skip)
         .limit(limit)
         .populate("customer worker", "name phone")
         .lean(),
