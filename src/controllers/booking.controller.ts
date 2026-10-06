@@ -11,6 +11,9 @@ const getPagination = (query: Request["query"]) => {
   const limit = Math.min(Math.max(Number(query.limit) || 10, 1), 50);
   return { page, limit, skip: (page - 1) * limit };
 };
+const DEFAULT_RADIUS_KM = 5;
+const MAX_RADIUS_KM = 50;
+const POOL_LIMIT = 20;
 
 //! createbooking
 export const createBooking = catchAsync(async (req: Request, res: Response) => {
@@ -59,7 +62,7 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
       coordinates: [lng, lat],
       address: location.address,
     },
-    scheduledAt: scheduledAt,
+    scheduledAt: scheduledDate,
   });
 
   sendResponse(res, {
@@ -111,30 +114,40 @@ export const getAvailableBookings = catchAsync(async (req: Request, res: Respons
     if (req.user!.role !== Role.WORKER) {
       throw new AppError("Only workers can view available bookings", 403);
     }
+    const lng = Number(req.query.lng);
+    const lat = Number(req.query.lat);
 
-    const { page, limit, skip } = getPagination(req.query);
-    const filter: Record<string, unknown> = { status: BookingStatus.Requested };
-    if (req.query.serviceType) {
+    const radiusKm = Math.min(
+      Math.max(Number(req.query.radius) || DEFAULT_RADIUS_KM, 1),
+      MAX_RADIUS_KM,
+    );
+
+    const filter: Record<string, unknown> = { 
+      status: BookingStatus.Requested,
+    location: {
+      $near:{
+        $geometry: { type: "Point", coordinates: [lng, lat] },
+        $maxDistance: radiusKm * 1000, // convert km to meters
+      },
+    },
+    };
+    if (typeof req.query.serviceType === "string") {
       filter.serviceType = req.query.serviceType;
     }
-    const [bookings, total] = await Promise.all([
-      Booking.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate("customer", "name")
-        .lean(),
-      Booking.countDocuments(filter),
-    ]);
+
+    const bookings = await Booking.find(filter)
+    .limit(POOL_LIMIT)
+    .populate("customer", "name phone")
+    .lean();
     sendResponse(res, {
       message: "Available bookings fetched",
-      data: { bookings, total, page, pages: Math.ceil(total / limit) },
+      data: { bookings, radiusKm },
       statusCode: 200,
     });
   },
 );
 
-//! get my bookings
+//! get my bookings 
 export const getAllBookings = catchAsync(async (req: Request, res: Response) => {
     const userId = req.user!._id;
     const role = req.user!.role;
@@ -170,6 +183,3 @@ export const getAllBookings = catchAsync(async (req: Request, res: Response) => 
     });
   },
 );
-
-const date = new Date();
-console.log(date)
