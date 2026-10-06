@@ -39,26 +39,10 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
       400,
     );
   }
-  const long = req.query.lng;
-  const lati = req.query.lat;
+  const lng = Number(location.coordinates[0]);
+  const lat = Number(location.coordinates[1]);
 
-  if (
-    typeof long !== "string" ||
-    typeof lati !== "string" ||
-    long.trim() === "" ||
-    lati.trim() === "" ||
-    !Number.isFinite(Number(long)) ||
-    !Number.isFinite(Number(lati)) 
-  ) {
-    throw new AppError(
-      "Invalid coordinates. Must be an array of two numbers [lng, lat].",
-      400,
-    );
-  }
-
-  const lng = Number(long);
-  const lat = Number(lati);
-  if( lng < -180 || lng > 180 || lat < -90 || lat > 90) {
+  if (lng < -180 || lng > 180 || lat < -90 || lat > 90) {
     throw new AppError(
       "Longitude must be between -180 and 180, latitude must be between -90 and 90.",
       400,

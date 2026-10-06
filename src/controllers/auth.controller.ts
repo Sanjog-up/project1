@@ -16,7 +16,7 @@ import { Role } from "../types/enum.types";
 
 const folder = "/profile_image";
 export const Register = catchAsync(async (req: Request, res: Response) => {
-  const { full_name, email, password, phone } = req.body ;
+  const { full_name, email, password, phone, role } = req.body ;
   const image = req.file;
   if (!full_name) {
     throw new AppError("full_name is required", 400);
@@ -41,7 +41,13 @@ export const Register = catchAsync(async (req: Request, res: Response) => {
 
   const hashedPassword = await hashPassword(password);
 
-  const user = new User({ full_name, email: loweredEmail, password:hashedPassword, phone});
+  const user = new User({ 
+    full_name, 
+    email: loweredEmail, 
+    password:hashedPassword, 
+    phone,
+    role: role || Role.USER,
+  });
 
   if (image) {
     const { path, public_id } = await sendFileToCloudinary(image, folder);
