@@ -91,7 +91,7 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
         worker: req.user!._id,
       },
     },
-    { new: true },
+    { returnDocument: "after" },
   );
   if (!booking) {
     throw new AppError(
@@ -107,8 +107,7 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
 });
 
 //! get available bookings for workers
-export const getAvailableBookings = catchAsync(
-  async (req: Request, res: Response) => {
+export const getAvailableBookings = catchAsync(async (req: Request, res: Response) => {
     if (req.user!.role !== Role.WORKER) {
       throw new AppError("Only workers can view available bookings", 403);
     }
@@ -118,7 +117,6 @@ export const getAvailableBookings = catchAsync(
     if (req.query.serviceType) {
       filter.serviceType = req.query.serviceType;
     }
-
     const [bookings, total] = await Promise.all([
       Booking.find(filter)
         .sort({ createdAt: -1 })
@@ -128,7 +126,6 @@ export const getAvailableBookings = catchAsync(
         .lean(),
       Booking.countDocuments(filter),
     ]);
-
     sendResponse(res, {
       message: "Available bookings fetched",
       data: { bookings, total, page, pages: Math.ceil(total / limit) },
@@ -138,8 +135,7 @@ export const getAvailableBookings = catchAsync(
 );
 
 //! get my bookings
-export const getAllBookings = catchAsync(
-  async (req: Request, res: Response) => {
+export const getAllBookings = catchAsync(async (req: Request, res: Response) => {
     const userId = req.user!._id;
     const role = req.user!.role;
     const { page, limit, skip } = getPagination(req.query);
@@ -174,3 +170,6 @@ export const getAllBookings = catchAsync(
     });
   },
 );
+
+const date = new Date();
+console.log(date)
