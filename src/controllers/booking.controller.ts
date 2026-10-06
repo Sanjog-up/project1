@@ -17,30 +17,50 @@ const POOL_LIMIT = 20;
 
 //! createbooking
 export const createBooking = catchAsync(async (req: Request, res: Response) => {
+  const { serviceType, description, location, scheduledAt } = req.body;
   if (req.user!.role !== Role.CLIENT) {
     throw new AppError("Only clients can create bookings", 403);
   }
-
-  const { serviceType, description, location, scheduledAt } = req.body;
+  if (typeof serviceType !== "string" || typeof location.address !== "string") {
+    throw new AppError("Invalid serviceType or address type", 400);
+  }
   if (!serviceType || !location?.address || !location?.coordinates) {
     throw new AppError(
       "Missing required fields: serviceType, location.address, location.coordinates",
       400,
     );
   }
-
-  const [lng, lat] = location.coordinates;
   if (
-    location.coordinates.length !== 2 ||
-    typeof lng !== "number" ||
-    typeof lat !== "number" ||
-    lng < -180 ||
-    lng > 180 ||
-    lat < -90 ||
-    lat > 90
+    !Array.isArray(location.coordinates) ||
+    location.coordinates.length !== 2
   ) {
     throw new AppError(
-      "Invalid coordinates. Must be an array of two numbers [lng, lat] with valid ranges.",
+      "Invalid coordinates. Must be an array of two numbers [lng, lat]",
+      400,
+    );
+  }
+  const long = req.query.lng;
+  const lati = req.query.lat;
+
+  if (
+    typeof long !== "string" ||
+    typeof lati !== "string" ||
+    long.trim() === "" ||
+    lati.trim() === "" ||
+    !Number.isFinite(Number(long)) ||
+    !Number.isFinite(Number(lati)) 
+  ) {
+    throw new AppError(
+      "Invalid coordinates. Must be an array of two numbers [lng, lat].",
+      400,
+    );
+  }
+
+  const lng = Number(long);
+  const lat = Number(lati);
+  if( lng < -180 || lng > 180 || lat < -90 || lat > 90) {
+    throw new AppError(
+      "Longitude must be between -180 and 180, latitude must be between -90 and 90.",
       400,
     );
   }
@@ -48,7 +68,7 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   let scheduledDate: Date | undefined;
   if (scheduledAt) {
     scheduledDate = new Date(scheduledAt);
-    if (isNaN(scheduledDate.getTime()) || scheduledDate < new Date()) {
+    if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
       throw new AppError("Invalid scheduledAt date", 400);
     }
   }
@@ -64,7 +84,6 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     },
     scheduledAt: scheduledDate,
   });
-
   sendResponse(res, {
     message: "Booking created successfully",
     data: booking,
@@ -99,7 +118,7 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
   if (!booking) {
     throw new AppError(
       "Booking not found or not in a state to be accepted",
-      409,
+      404,
     );
   }
   sendResponse(res, {
@@ -110,17 +129,24 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
 });
 
 //! get available bookings for workers
-export const getAvailableBookings = catchAsync(async (req: Request, res: Response) => {
+export const getAvailableBookings = catchAsync(
+  async (req: Request, res: Response) => {
     if (req.user!.role !== Role.WORKER) {
       throw new AppError("Only workers can view available bookings", 403);
     }
     const lng = Number(req.query.lng);
     const lat = Number(req.query.lat);
-    if(
-      req.query.lng === undefined || req.query.lat === undefined ||
-      req.query.lng === null || req.query.lat === null ||
-      !Number.isFinite(lng) || !Number.isFinite(lat) ||
-      lng < -180 || lng > 180 || lat < -90 || lat > 90
+    if (
+      req.query.lng === undefined ||
+      req.query.lat === undefined ||
+      req.query.lng === null ||
+      req.query.lat === null ||
+      !Number.isFinite(lng) ||
+      !Number.isFinite(lat) ||
+      lng < -180 ||
+      lng > 180 ||
+      lat < -90 ||
+      lat > 90
     ) {
       throw new AppError("Invalid or missing coordinates", 400);
     }
@@ -130,23 +156,23 @@ export const getAvailableBookings = catchAsync(async (req: Request, res: Respons
       MAX_RADIUS_KM,
     );
 
-    const filter: Record<string, unknown> = { 
+    const filter: Record<string, unknown> = {
       status: BookingStatus.Requested,
-    location: {
-      $near:{
-        $geometry: { type: "Point", coordinates: [lng, lat] },
-        $maxDistance: radiusKm * 1000, // convert km to meters
+      location: {
+        $near: {
+          $geometry: { type: "Point", coordinates: [lng, lat] },
+          $maxDistance: radiusKm * 1000, // convert km to meters
+        },
       },
-    },
     };
     if (typeof req.query.serviceType === "string") {
       filter.serviceType = req.query.serviceType;
     }
 
     const bookings = await Booking.find(filter)
-    .limit(POOL_LIMIT)
-    .populate("customer", "name ")
-    .lean();
+      .limit(POOL_LIMIT)
+      .populate("customer", "name")
+      .lean();
     sendResponse(res, {
       message: "Available bookings fetched",
       data: { bookings, radiusKm },
@@ -155,8 +181,9 @@ export const getAvailableBookings = catchAsync(async (req: Request, res: Respons
   },
 );
 
-//! get my bookings 
-export const getAllBookings = catchAsync(async (req: Request, res: Response) => {
+//! get my bookings
+export const getAllBookings = catchAsync(
+  async (req: Request, res: Response) => {
     const userId = req.user!._id;
     const role = req.user!.role;
     const { page, limit, skip } = getPagination(req.query);
