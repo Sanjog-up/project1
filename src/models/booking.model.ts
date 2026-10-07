@@ -7,6 +7,7 @@ export enum BookingStatus {
   InProgress = "InProgress",
   Completed = "Completed",
   Cancelled = "Cancelled",
+  Expired = "Expired",
 }
 
 export interface IBooking extends Document {
@@ -25,6 +26,7 @@ export interface IBooking extends Document {
   paymentStatus: "Pending" | "Paid" | "Refunded";
   createdAt: Date;
   updatedAt: Date;
+  expiresAt?: Date;
 }
 
 const bookingSchema = new Schema<IBooking>(
@@ -64,6 +66,7 @@ const bookingSchema = new Schema<IBooking>(
       enum: ["Pending", "Paid", "Refunded"],
       default: "Pending",
     },
+    expiresAt: { type: Date , required: true},
   },
   { timestamps: true },
 );
@@ -71,5 +74,6 @@ const bookingSchema = new Schema<IBooking>(
 bookingSchema.index({ location: "2dsphere" });
 bookingSchema.index({ customer: 1, status: 1 });
 bookingSchema.index({ worker: 1, status: 1 });
+bookingSchema.index({ status: 1, expiresAt: 1 });
 
 export const Booking = model<IBooking>("Booking", bookingSchema);
