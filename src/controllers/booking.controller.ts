@@ -208,3 +208,16 @@ export const getAllBookings = catchAsync(
     });
   },
 );
+
+export const expirreBookings = () => {
+  setInterval(async () => {
+    try {
+      await Booking.updateMany(
+        { status: BookingStatus.Requested, expiresAt: { $lte: new Date() } },
+        { $set: { status: BookingStatus.Expired } },
+      );
+    } catch (error) {
+      console.error("Error expiring bookings:", error);
+    }
+  }, 60 * 1000); // Run every minute
+};
