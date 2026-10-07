@@ -161,7 +161,7 @@ export const getAvailableBookings = catchAsync(
 
     const bookings = await Booking.find(filter)
       .limit(POOL_LIMIT)
-      .populate("customer", "name")
+      .populate("customer", "full_name")
       .lean();
     sendResponse(res, {
       message: "Available bookings fetched",
@@ -196,7 +196,7 @@ export const getAllBookings = catchAsync(
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate("customer worker", "name phone")
+        .populate("customer worker", "full_name phone")
         .lean(),
       Booking.countDocuments(filter),
     ]);
@@ -209,7 +209,7 @@ export const getAllBookings = catchAsync(
   },
 );
 
-export const expirreBookings = () => {
+export const expireBookings = () => {
   setInterval(async () => {
     try {
       await Booking.updateMany(
