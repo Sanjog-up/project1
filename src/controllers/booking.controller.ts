@@ -14,6 +14,7 @@ const getPagination = (query: Request["query"]) => {
 const DEFAULT_RADIUS_KM = 5;
 const MAX_RADIUS_KM = 25;
 const POOL_LIMIT = 20;
+const booking_exp_time = 15;
 
 //! createbooking
 export const createBooking = catchAsync(async (req: Request, res: Response) => {
@@ -57,6 +58,8 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     }
   }
 
+  const expiresAt = new Date(Date.now() + booking_exp_time * 60 * 1000); // 15 minutes from now
+
   const booking = await Booking.create({
     customer: req.user!._id,
     serviceType,
@@ -67,6 +70,7 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
       address: location.address,
     },
     scheduledAt: scheduledDate,
+    expiresAt,
   });
   sendResponse(res, {
     message: "Booking created successfully",
@@ -90,6 +94,7 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
     {
       _id: id,
       status: BookingStatus.Requested,
+      expiresAt: { $gt: new Date() },
     },
     {
       $set: {
@@ -142,6 +147,7 @@ export const getAvailableBookings = catchAsync(
 
     const filter: Record<string, unknown> = {
       status: BookingStatus.Requested,
+      expiresAt: { $gt: new Date() }, // Only fetch bookings that haven't expired
       location: {
         $near: {
           $geometry: { type: "Point", coordinates: [lng, lat] },

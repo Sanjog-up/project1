@@ -26,7 +26,7 @@ export interface IBooking extends Document {
   paymentStatus: "Pending" | "Paid" | "Refunded";
   createdAt: Date;
   updatedAt: Date;
-  expiresAt?: Date;
+  expiresAt: Date;
 }
 
 const bookingSchema = new Schema<IBooking>(
