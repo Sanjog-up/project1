@@ -1,7 +1,10 @@
 import { Response, Request, NextFunction } from "express";
 import AppError from "../utils/appError.utils";
 import User from "../models/user.models";
-import { deleteFileFromCloudinary, sendFileToCloudinary } from "../utils/cloudinary.utils";
+import {
+  deleteFileFromCloudinary,
+  sendFileToCloudinary,
+} from "../utils/cloudinary.utils";
 import ENV_CONFIG from "../config/env.config";
 import { sendResponse } from "../utils/sendResponse.utils";
 import { catchAsync } from "../utils/catchAsync.utils";
@@ -9,7 +12,6 @@ import { comparePassword, hashPassword } from "../utils/bcrypt.utilis";
 import { generateJwtToken } from "../utils/jwt.utilis";
 import { WorkerProfile } from "../models/worker.model";
 import { Role } from "../types/enum.types";
-
 
 const cookieOptions = () => {
   const dev = ENV_CONFIG.node_env === "development";
@@ -34,14 +36,14 @@ const folder = "/profile_image";
 export const Register = catchAsync(async (req: Request, res: Response) => {
   const { full_name, email, password, phone } = req.body;
   const image = req.file;
-  if (!full_name) {
-    throw new AppError("full_name is required", 400);
+  if (!full_name || typeof full_name !== "string" || full_name.trim().length < 3) {
+    throw new AppError("full_name is required and must be at least 3 characters long", 400);
   }
-  if (!email) {
+  if (!email || typeof email !== "string") {
     throw new AppError("email is required", 400);
   }
-  if (!password) {
-    throw new AppError("password is required", 400);
+  if (!password || typeof password !== "string" || password.length < 6) {
+    throw new AppError("password is required and must be at least 6 characters long", 400);
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -155,7 +157,7 @@ export const logout = catchAsync(async (req: Request, res: Response) => {
 export const beWorker = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user!._id;
 
-  if( req.user!.role === Role.USER) {
+  if (req.user!.role === Role.USER) {
     throw new AppError("Only users can be registered as worker", 400);
   }
 
@@ -177,7 +179,16 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
       400,
     );
   }
-  if (!location) {
+  const coords = location?.coordinates;
+  if (
+    !Array.isArray(coords) ||
+    coords.length !== 2 ||
+    !coords.every(
+      (c: unknown) => typeof c === "number" && Number.isFinite(c),
+    ) ||
+    Math.abs(coords[0]) > 180 ||
+    Math.abs(coords[1]) > 90
+  ) {
     throw new AppError(
       "location must be provided with valid coordinates [lng, lat]",
       400,
@@ -199,10 +210,12 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
       bio,
       hourlyRate: hourlyRate || 150,
       serviceRadiusKm: serviceRadiusKm || 10,
-      location,
+      location: {
+        type: "Point",
+        coordinates: coords,
+      },
     });
   } catch (err) {
-    // Rollback user role update if worker profile creation fails
     await User.findByIdAndUpdate(userId, { role: Role.USER });
     throw err;
   }

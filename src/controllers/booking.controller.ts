@@ -5,6 +5,7 @@ import { sendResponse } from "../utils/sendResponse.utils";
 import AppError from "../utils/appError.utils";
 import { Role } from "../types/enum.types";
 import mongoose from "mongoose";
+import { WorkerProfile } from "../models/worker.model";
 
 const getPagination = (query: Request["query"]) => {
   const page = Math.max(Number(query.page) || 1, 1);
@@ -22,12 +23,12 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   if (req.user!.role !== Role.USER) {
     throw new AppError("Only users can create bookings", 403);
   }
-  if (typeof serviceType !== "string" || typeof location.address !== "string") {
+  if (typeof serviceType !== "string" || !serviceType.trim()) {
     throw new AppError("Invalid serviceType or address type", 400);
   }
-  if (!serviceType || !location?.address || !location?.coordinates) {
+  if ( !location.address.trim() || typeof location?.address !== "string" ) {
     throw new AppError(
-      "Missing required fields: serviceType, location.address, location.coordinates",
+      "Missing location.address or address must be a non-empty string",
       400,
     );
   }
@@ -43,7 +44,9 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   const lng = Number(location.coordinates[0]);
   const lat = Number(location.coordinates[1]);
 
-  if (lng < -180 || lng > 180 || lat < -90 || lat > 90) {
+  if (lng < -180 || lng > 180 || lat < -90 || lat > 90 ||
+    !Number.isFinite(lng) || !Number.isFinite(lat)
+  ) {
     throw new AppError(
       "Longitude must be between -180 and 180, latitude must be between -90 and 90.",
       400,
@@ -58,7 +61,7 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     }
   }
 
-  const expiresAt = new Date(Date.now() + booking_exp_time * 60 * 1000); // 15 minutes from now
+  const expiresAt = scheduledAt ?? new Date(Date.now() + booking_exp_time * 60 * 1000); // 15 minutes from now
 
   const booking = await Booking.create({
     customer: req.user!._id,
