@@ -6,13 +6,13 @@ import { Role } from "../types/enum.types";
 const router = express.Router();
 
 //! create booking (authenticated)
-router.post("/", authenticate([Role.CLIENT]), createBooking);
+router.post("/", authenticate([Role.USER]), createBooking);
 
 //! accept booking
 router.patch("/:id/accept", authenticate([Role.WORKER]), acceptBooking);
 
 //! get all bookings for client (authenticated)
-router.get("/", authenticate([Role.CLIENT, Role.WORKER]), getAllBookings); 
+router.get("/", authenticate([Role.USER, Role.WORKER]), getAllBookings); 
 
 //! get available bookings for workers
 router.get("/available", authenticate([Role.WORKER]), getAvailableBookings);

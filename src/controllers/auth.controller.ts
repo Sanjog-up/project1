@@ -1,11 +1,7 @@
-import jwt from "jsonwebtoken";
 import { Response, Request, NextFunction } from "express";
 import AppError from "../utils/appError.utils";
 import User from "../models/user.models";
-import {
-  deleteFileFromCloudinary,
-  sendFileToCloudinary,
-} from "../utils/cloudinary.utils";
+import { deleteFileFromCloudinary, sendFileToCloudinary } from "../utils/cloudinary.utils";
 import ENV_CONFIG from "../config/env.config";
 import { sendResponse } from "../utils/sendResponse.utils";
 import { catchAsync } from "../utils/catchAsync.utils";
@@ -14,9 +10,29 @@ import { generateJwtToken } from "../utils/jwt.utilis";
 import { WorkerProfile } from "../models/worker.model";
 import { Role } from "../types/enum.types";
 
+
+const cookieOptions = () => {
+  const dev = ENV_CONFIG.node_env === "development";
+  return {
+    httpOnly: !dev,
+    secure: !dev,
+    sameSite: (dev ? "lax" : "none") as "lax" | "none",
+    path: "/",
+  };
+};
+
+const setAuthCookie = (res: Response, token: string) =>
+  res.cookie("access_token", token, {
+    ...cookieOptions(),
+    maxAge: parseInt(ENV_CONFIG.cookie_express ?? "7") * 24 * 60 * 60 * 1000,
+  });
+
+const clearAuthCookie = (res: Response) =>
+  res.clearCookie("access_token", cookieOptions());
+
 const folder = "/profile_image";
 export const Register = catchAsync(async (req: Request, res: Response) => {
-  const { full_name, email, password, phone, role } = req.body ;
+  const { full_name, email, password, phone } = req.body;
   const image = req.file;
   if (!full_name) {
     throw new AppError("full_name is required", 400);
@@ -29,24 +45,26 @@ export const Register = catchAsync(async (req: Request, res: Response) => {
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if(!emailRegex.test(email)){
+  if (!emailRegex.test(email)) {
     throw new AppError("please provide a valid email address", 400);
   }
   const loweredEmail = email.toLowerCase();
 
-  const existingUser = await User.findOne({ email: loweredEmail.toLowerCase()});
-  if(existingUser){
+  const existingUser = await User.findOne({
+    email: loweredEmail.toLowerCase(),
+  });
+  if (existingUser) {
     throw new AppError("Email already registered", 400);
   }
 
   const hashedPassword = await hashPassword(password);
 
-  const user = new User({ 
-    full_name, 
-    email: loweredEmail, 
-    password:hashedPassword, 
+  const user = new User({
+    full_name,
+    email: loweredEmail,
+    password: hashedPassword,
     phone,
-    role: role || Role.USER,
+    role: Role.USER,
   });
 
   if (image) {
@@ -65,37 +83,35 @@ export const Register = catchAsync(async (req: Request, res: Response) => {
     throw err;
   }
 
-  const token = jwt.sign(
-    {
-      _id: user._id,
-      role: user.role,
-      email: user.email,
-      full_name: user.full_name,
-    },
-    ENV_CONFIG.jwt_secret as string,
-    { expiresIn: "7d" },
-  );
+  const access_token = generateJwtToken({
+    _id: user._id,
+    role: user.role,
+    email: user.email,
+    full_name: user.full_name,
+  });
+  setAuthCookie(res, access_token);
 
   sendResponse(res, {
     message: "Account created",
-    data: { user, token },
+    data: { user, access_token },
     statusCode: 201,
   });
 });
-
 
 //! login
 export const login = catchAsync(async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
-  if (!email) {
+  if (typeof email !== "string" || !email) {
     throw new AppError("email is required", 400);
   }
-  if (!password) {
+  if (!password || typeof password !== "string") {
     throw new AppError("password is required", 400);
   }
 
-  const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
+  const user = await User.findOne({ email: email.toLowerCase() }).select(
+    "+password",
+  );
   if (!user) {
     throw new AppError("email or password does not match", 400);
   }
@@ -116,12 +132,7 @@ export const login = catchAsync(async (req: Request, res: Response) => {
   const access_token = generateJwtToken(payload);
 
   //* send access_token in cookie
-  res.cookie("access_token", access_token, {
-    httpOnly: ENV_CONFIG.node_env === "development" ? false : true,
-    maxAge: parseInt(ENV_CONFIG.cookie_express ?? "7") * 24 * 60 * 60 * 1000,
-    secure: ENV_CONFIG.node_env === "development" ? false : true,
-    sameSite: ENV_CONFIG.node_env === "development" ? "lax" : "none",
-  });
+  setAuthCookie(res, access_token);
   //* success response
   sendResponse(res, {
     message: "Login successful",
@@ -131,46 +142,53 @@ export const login = catchAsync(async (req: Request, res: Response) => {
 });
 
 //! logout
-export const logout = catchAsync(async (req:Request, res:Response) => {
-  
-  res.clearCookie("access_token", {
-    httpOnly: ENV_CONFIG.node_env === "development" ? false : true,
-    maxAge: Date.now(),
-    secure: ENV_CONFIG.node_env === "development" ? false : true,
-    sameSite: ENV_CONFIG.node_env === "development" ? "lax" : "none",
-    path: "/",
+export const logout = catchAsync(async (req: Request, res: Response) => {
+  clearAuthCookie(res);
+  sendResponse(res, {
+    message: "Logged out successfully",
+    statusCode: 200,
+    data: null,
   });
-
-  sendResponse(res,{
-  message: "Logged out successfully",
-  statusCode: 200,
-  data: null,
-  })
 });
 
-//! sign up as worker 
-export const beWorker = catchAsync(async(req: Request, res: Response) => {
+//! sign up as worker
+export const beWorker = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user!._id;
 
-  //* checking user has worjer profile 
-  const existing = await WorkerProfile.findOne({ user: userId});
-  if(existing){
+  if( req.user!.role === Role.USER) {
+    throw new AppError("Only users can be registered as worker", 400);
+  }
+
+  //* checking user has worjer profile
+  const existing = await WorkerProfile.findOne({ user: userId });
+  if (existing) {
     throw new AppError("You are already registered as worker", 400);
   }
 
-  const { skills, experience, bio, hourlyRate, serviceRadiusKm , location } = req.body;
+  const { skills, experience, bio, hourlyRate, serviceRadiusKm, location } =
+    req.body;
 
-  if(!Array.isArray(skills) || skills.length === 0){
+  if (!Array.isArray(skills) || skills.length === 0) {
     throw new AppError("skills must be a non-empty array", 400);
   }
-  if(!bio || bio.length < 25){
-    throw new AppError("bio is required and must be at least 25 characters long", 400);
+  if (!bio || bio.length < 25) {
+    throw new AppError(
+      "bio is required and must be at least 25 characters long",
+      400,
+    );
   }
-  if(!location){
-    throw new AppError("location must be provided with valid coordinates [lng, lat]", 400);
+  if (!location) {
+    throw new AppError(
+      "location must be provided with valid coordinates [lng, lat]",
+      400,
+    );
   }
 
-  await User.findByIdAndUpdate(userId, { role: Role.WORKER }, { runValidators: true });
+  await User.findByIdAndUpdate(
+    userId,
+    { role: Role.WORKER },
+    { runValidators: true },
+  );
 
   let workerProfile;
   try {
@@ -193,5 +211,5 @@ export const beWorker = catchAsync(async(req: Request, res: Response) => {
     message: "Successfully registered as worker",
     data: workerProfile,
     statusCode: 201,
-  })
-})
+  });
+});

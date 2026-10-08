@@ -19,8 +19,8 @@ const booking_exp_time = 15;
 //! createbooking
 export const createBooking = catchAsync(async (req: Request, res: Response) => {
   const { serviceType, description, location, scheduledAt } = req.body;
-  if (req.user!.role !== Role.CLIENT) {
-    throw new AppError("Only clients can create bookings", 403);
+  if (req.user!.role !== Role.USER) {
+    throw new AppError("Only users can create bookings", 403);
   }
   if (typeof serviceType !== "string" || typeof location.address !== "string") {
     throw new AppError("Invalid serviceType or address type", 400);
@@ -180,7 +180,7 @@ export const getAllBookings = catchAsync(
 
     let filter: Record<string, unknown>;
     if (role === Role.WORKER) filter = { worker: userId };
-    else if (role === Role.CLIENT) filter = { customer: userId };
+    else if (role === Role.USER) filter = { customer: userId };
     else throw new AppError("Unauthorized role for fetching bookings", 403);
 
     const status = req.query.status as string | undefined;
