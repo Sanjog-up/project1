@@ -65,7 +65,7 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
 
   const booking = await Booking.create({
     customer: req.user!._id,
-    serviceType,
+    serviceType: serviceType.trim(),
     description,
     location: {
       type: "Point",
@@ -91,6 +91,11 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   if (!mongoose.isValidObjectId(id)) {
     throw new AppError("Invalid booking ID", 400);
+  }
+
+  const worker = await WorkerProfile.findOne({ user: req.user!._id });
+  if (!worker) {
+    throw new AppError("Worker profile not found", 404);
   }
 
   const booking = await Booking.findOneAndUpdate(
