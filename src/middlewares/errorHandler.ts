@@ -9,8 +9,12 @@ export const errorHandler = (
     next: NextFunction
 ) => {
     let statusCode = error?.statusCode || 500;
-    let status = error?.status || "error";
+    let status = statusCode >= 500 ? "error" : error?.status || "fail";
     let message = error?.message || "Internal Server Error";
+
+    if(statusCode >= 500) {
+        console.error(error);
+    }
 
     console.log(error.name);
     console.log(error.message);
@@ -40,6 +44,17 @@ export const errorHandler = (
         statusCode = 400;
         status = "fail";
         message = `Duplicate field value entered for ${Object.keys(error.keyValue)}. Please use another value!`;
+    }
+
+    //! invalid ObjectId error
+    if(error.name === "CastError" || error.kind === "ObjectId"){
+        statusCode = 400;
+        status = "fail";
+        message = `Invalid ${error.path}: ${error.value}.`;
+    } 
+
+    if(statusCode >= 500 && process.env.NODE_ENV === "production"){
+        message = "Internal Server Error. Please try again later.";
     }
 
     //* error response
