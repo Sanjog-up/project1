@@ -13,4 +13,7 @@ export const server = async() => {
     console.log(`server is running on http://localhost:${PORT}`)
 })
 }
-server();
+server().catch((error) => {
+    console.error("Error starting server:", error);
+    process.exit(1);
+});

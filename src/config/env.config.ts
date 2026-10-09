@@ -29,4 +29,18 @@ const ENV_CONFIG = {
     allow_origin: process.env.ALLOW_ORIGIN!!, 
 };
 
+const required = [
+    "DB_URI",
+    "JWT_SECRET",
+    "JWT_EXPIRY",
+    "CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_API_KEY",
+    "CLOUDINARY_API_SECRET",
+    "ALLOW_ORIGIN"
+] as const;
+const missing = required.filter((key) => !process.env[key]);
+if (missing.length) {
+    throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+}
+
 export default ENV_CONFIG;

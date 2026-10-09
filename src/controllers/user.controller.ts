@@ -28,7 +28,7 @@ export const getUsersById = catchAsync(async(req: Request, res:Response, next : 
     const user = await User.findOne({ _id: id});
 
     if(!user){
-        throw new AppError("User not found", 400)
+        throw new AppError("User not found", 404)
     }
     
     sendResponse(res, {
