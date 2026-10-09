@@ -6,9 +6,9 @@ import { Role } from "../types/enum.types";
 const router = express.Router();
 
 //! get all (protected)
-router.get("/", authenticate([Role.ADMIN]), getAllUsers);
+router.get("/", authenticate([Role.ADMIN, Role.SUPER_ADMIN]), getAllUsers);
 
 //! get by id (protected)
-router.get("/:id", authenticate([Role.ADMIN]), getUsersById);
+router.get("/:id", authenticate([Role.ADMIN, Role.SUPER_ADMIN]), getUsersById);
 
 export default router;
