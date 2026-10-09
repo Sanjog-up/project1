@@ -2,16 +2,24 @@ import express from "express";
 import { beWorker, login, logout, Register } from "../controllers/auth.controller";
 import { authenticate } from "../middlewares/auth.middleware";
 import { multerUploader } from "../middlewares/mutlter.middleware";
+import  rateLimit  from "express-rate-limit";
 
 const router = express.Router();
 
 const upload = multerUploader({ allowPdf: true, maxSizeMB: 10 });
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit : 10,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: "{ success: false, message: Too many requests from this IP, please try again after 15 minutes }",
+});
 
 //! Register
-router.post("/register", upload.single("image"), Register);
+router.post("/register", authLimiter, upload.single("image"), Register);
 
 //! Login
-router.post("/login", login);
+router.post("/login", authLimiter, login);
 
 //! Logout
 router.post("/logout", logout);
