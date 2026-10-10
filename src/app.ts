@@ -5,7 +5,6 @@ import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import userRoutes from "./routes/user.routes";
 import authRoutes from "./routes/auth.routes";
-import AppError from "./utils/appError.utils";
 import { errorHandler } from "./middlewares/errorHandler";
 import { notFoundMiddleware } from "./middlewares/notFound.middleware";
 import ENV_CONFIG from "./config/env.config";
@@ -33,8 +32,7 @@ app.get("/", (req: Request, res: Response) => {
   });
 });
 
-// API routes
-// Highlight: these mounts were missing before
+//! API routes
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/bookings", bookingRoutes);

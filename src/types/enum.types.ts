@@ -5,6 +5,4 @@ export enum Role {
     WORKER = "Worker"
 }
 
-export const All_Users = Object.values(Role);
-export const Only_Users = [Role.USER];
 export const Only_Admins = [Role.ADMIN, Role.SUPER_ADMIN];

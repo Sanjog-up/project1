@@ -115,13 +115,13 @@ export const login = catchAsync(async (req: Request, res: Response) => {
     "+password",
   );
   if (!user) {
-    throw new AppError("email or password does not match", 400);
+    throw new AppError("email or password does not match", 401);
   }
 
   const isPasswordMathed = await comparePassword(password, user.password);
 
   if (!isPasswordMathed) {
-    throw new AppError("email or password does not match", 400);
+    throw new AppError("email or password does not match", 401);
   }
 
   const payload = {
@@ -139,7 +139,7 @@ export const login = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     message: "Login successful",
     data: { user, access_token },
-    statusCode: 201,
+    statusCode: 200,
   });
 });
 

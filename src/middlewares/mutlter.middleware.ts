@@ -2,6 +2,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import AppError from "../utils/appError.utils";
+import crypto from "crypto";
 
 type UploaderOptions = {
   allowPdf?: boolean;
@@ -26,7 +27,9 @@ export const multerUploader = ({
     destination: (req, file, cb) => cb(null, uploadFolder),
     filename: function (req, file, cb) {
       const uniqueName =
-        Date.now() + "-" + file.originalname.replace(/\s/g, "");
+        Date.now() + "-" +
+        crypto.randomUUID() +
+        path.extname(file.originalname);
       cb(null, uniqueName);
     },
   });
