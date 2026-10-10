@@ -157,8 +157,8 @@ export const logout = catchAsync(async (req: Request, res: Response) => {
 export const beWorker = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user!._id;
 
-  if (req.user!.role === Role.USER) {
-    throw new AppError("Only users can be registered as worker", 400);
+  if (req.user!.role !== Role.USER) {
+    throw new AppError("Only users can be registered as worker", 403);
   }
 
   //* checking user has worjer profile
@@ -170,9 +170,11 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
   const { skills, experience, bio, hourlyRate, serviceRadiusKm, location } =
     req.body;
 
-  if (!Array.isArray(skills) || skills.length === 0) {
+  if (!Array.isArray(skills) || skills.length === 0 || !skills.every((s: unknown) => typeof s === "string" && s.trim())) {
     throw new AppError("skills must be a non-empty array", 400);
   }
+  const cleanedSkills = skills.map((s: string) => s.trim());
+
   if (!bio || bio.length < 25) {
     throw new AppError(
       "bio is required and must be at least 25 characters long",
@@ -195,17 +197,20 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     );
   }
 
-  await User.findByIdAndUpdate(
-    userId,
+  const promoted = await User.findByIdAndUpdate(
+    { _id: userId, role: Role.USER },
     { role: Role.WORKER },
-    { runValidators: true },
+    { returnDocument: "after" },
   );
+  if(!promoted){
+    throw new AppError("Only normal users can be registered as worker", 409);
+  }
 
   let workerProfile;
   try {
     workerProfile = await WorkerProfile.create({
       user: userId,
-      skills,
+      skills: cleanedSkills,
       experience: experience || 0,
       bio,
       hourlyRate: hourlyRate || 150,
@@ -219,6 +224,14 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     await User.findByIdAndUpdate(userId, { role: Role.USER });
     throw err;
   }
+  //* generate new access_token with updated role and set cookie 
+  const access_token = generateJwtToken({
+    _id: promoted._id,
+    full_name: promoted.full_name,
+    email: promoted.email,
+    role: promoted.role,
+  });
+  setAuthCookie(res, access_token);
 
   sendResponse(res, {
     message: "Successfully registered as worker",
