@@ -26,7 +26,7 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   if (typeof serviceType !== "string" || !serviceType.trim()) {
     throw new AppError("Invalid serviceType or address type", 400);
   }
-  if ( !location.address.trim() || typeof location?.address !== "string" ) {
+  if (typeof location?.address !== "string" || !location.address.trim()) {
     throw new AppError(
       "Missing location.address or address must be a non-empty string",
       400,
@@ -44,8 +44,13 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   const lng = Number(location.coordinates[0]);
   const lat = Number(location.coordinates[1]);
 
-  if (lng < -180 || lng > 180 || lat < -90 || lat > 90 ||
-    !Number.isFinite(lng) || !Number.isFinite(lat)
+  if (
+    lng < -180 ||
+    lng > 180 ||
+    lat < -90 ||
+    lat > 90 ||
+    !Number.isFinite(lng) ||
+    !Number.isFinite(lat)
   ) {
     throw new AppError(
       "Longitude must be between -180 and 180, latitude must be between -90 and 90.",
@@ -61,11 +66,12 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     }
   }
 
-  const expiresAt = scheduledAt ?? new Date(Date.now() + booking_exp_time * 60 * 1000); // 15 minutes from now
+  const expiresAt =
+    scheduledDate ?? new Date(Date.now() + booking_exp_time * 60 * 1000); // 15 minutes from now
 
   const booking = await Booking.create({
     customer: req.user!._id,
-    serviceType: serviceType.trim(),
+    serviceType: serviceType.trim().toLowerCase(),
     description,
     location: {
       type: "Point",
@@ -97,12 +103,16 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
   if (!worker) {
     throw new AppError("Worker profile not found", 404);
   }
+  if (!worker.isAvailable) {
+    throw new AppError("You are currently marked as unavailable", 403);
+  }
 
   const booking = await Booking.findOneAndUpdate(
     {
       _id: id,
       status: BookingStatus.Requested,
       expiresAt: { $gt: new Date() },
+      serviceType: { $in: worker.skills },
     },
     {
       $set: {
@@ -130,6 +140,10 @@ export const getAvailableBookings = catchAsync(
   async (req: Request, res: Response) => {
     if (req.user!.role !== Role.WORKER) {
       throw new AppError("Only workers can view available bookings", 403);
+    }
+    const worker = await WorkerProfile.findOne({ user: req.user!._id });
+    if (!worker) {
+      throw new AppError("Worker profile not found", 404);
     }
     const lng = Number(req.query.lng);
     const lat = Number(req.query.lat);
@@ -163,9 +177,13 @@ export const getAvailableBookings = catchAsync(
         },
       },
     };
-    if (typeof req.query.serviceType === "string") {
-      filter.serviceType = req.query.serviceType;
-    }
+    const wanted =
+      typeof req.query.serviceType === "string"
+        ? (filter.serviceType = req.query.serviceType.trim().toLowerCase())
+        : undefined;
+    filter.serviceType = {
+      $in: wanted ? worker.skills.filter((s) => s === wanted) : worker.skills,
+    };
 
     const bookings = await Booking.find(filter)
       .limit(POOL_LIMIT)

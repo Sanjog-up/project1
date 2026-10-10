@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import AppError from "../utils/appError.utils";
 import fs from "fs";
+import multer from "multer";
 
 export const errorHandler = (
     error: AppError | Error | any,
@@ -9,16 +10,19 @@ export const errorHandler = (
     next: NextFunction
 ) => {
     let statusCode = error?.statusCode || 500;
-    let status = statusCode >= 500 ? "error" : error?.status || "fail";
+    let status = statusCode >= 500 ? "error" : "fail";
     let message = error?.message || "Internal Server Error";
 
     if(statusCode >= 500) {
         console.error(error);
     }
 
-    console.log(error.name);
-    console.log(error.message);
-
+    //! multer error handling (large file size)
+    if (error instanceof multer.MulterError) {
+            statusCode = 400;
+            status = "fail";
+            message = error.code === "LIMIT_FILE_SIZE" ? "File size is too large. Maximum limit is 5MB." : error.message;
+        } 
     //! remove leftover uploads if request failed
     const leftoverFiles = [req.file,
         ...(Array.isArray(req.files) ? req.files : []),

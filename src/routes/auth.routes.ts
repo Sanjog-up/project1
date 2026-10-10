@@ -6,13 +6,13 @@ import  rateLimit  from "express-rate-limit";
 
 const router = express.Router();
 
-const upload = multerUploader({ allowPdf: true, maxSizeMB: 10 });
+const upload = multerUploader({ allowPdf: false, maxSizeMB: 5 });
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit : 10,
     standardHeaders: "draft-7",
     legacyHeaders: false,
-    message: "{ success: false, message: Too many requests from this IP, please try again after 15 minutes }",
+    message: "{ status: fail, success: false, message: Too many requests from this IP, please try again after 15 minutes }",
 });
 
 //! Register
