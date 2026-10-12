@@ -6,6 +6,7 @@ import AppError from "../utils/appError.utils";
 import { Role } from "../types/enum.types";
 import mongoose from "mongoose";
 import { WorkerProfile } from "../models/worker.model";
+import { Service } from "../models/services.model";
 
 const getPagination = (query: Request["query"]) => {
   const page = Math.max(Number(query.page) || 1, 1);
@@ -81,9 +82,17 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   const expiresAt =
     scheduledDate ?? new Date(Date.now() + booking_exp_time * 60 * 1000); // 15 minutes from now
 
+  const serviceExists = await Service.findOne({
+    slug: serviceType.trim().toLowerCase(),
+    isActive: true,
+  });
+  if (!serviceExists) {
+    throw new AppError("Service type does not exist or is inactive", 400);
+  }  
   const booking = await Booking.create({
     customer: req.user!._id,
-    serviceType: serviceType.trim().toLowerCase(),
+    serviceType: serviceExists.slug,
+    price: serviceExists.price,
     description,
     location: {
       type: "Point",
