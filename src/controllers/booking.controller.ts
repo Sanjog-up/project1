@@ -257,8 +257,40 @@ export const completeBooking = catchAsync(async (req: Request, res: Response) =>
   });
 });
 
+//! booking rejection
+export const rejectBooking = catchAsync(async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  const filter: Record<string, unknown> = {
+    _id: id,
+    worker: req.user!._id,
+    status: { $in : [BookingStatus.Accepted, BookingStatus.EnRoute] },
+  };
+  const currentBooking = await Booking.findOne(filter);
+  if (!currentBooking) {
+    throw new AppError(
+      "Booking not found or it is not in Accepted or EnRoute status",
+      409,
+    );
+  }
+  const expiresAt = currentBooking.scheduledAt ??  new Date(Date.now() + booking_exp_time * 60 * 1000); // 15 minutes from now
 
-
+  const booking = await Booking.findOneAndUpdate(
+    filter,
+    {$set: {status: BookingStatus.Requested,expiresAt}, $unset: { worker: 1 }},
+    { returnDocument: "after" },
+  );
+  if (!booking) {
+    throw new AppError(
+      "Booking not found or it is not in Accepted or EnRoute status",
+      409,
+    );
+  }
+  sendResponse(res, {
+    message: "Booking rejected successfully",
+    data: booking,
+    statusCode: 200,
+  });
+});
 
 //! get my bookings
 export const getAllBookings = catchAsync(
