@@ -1,4 +1,3 @@
-import { Booking } from './../models/booking.model';
 import { Request, Response } from "express";
 import { Booking, BookingStatus } from "../models/booking.model";
 import { catchAsync } from "../utils/catchAsync.utils";
@@ -318,36 +317,22 @@ export const cancelBooking = catchAsync(async (req: Request, res: Response) => {
   //! get my bookings
 export const getAllBookings = catchAsync(
   async (req: Request, res: Response) => {
-    const userId = req.user!._id;
-    const role = req.user!.role;
-    const { page, limit, skip } = getPagination(req.query);
+    const id = parseId(req.user!._id.toString());
+    const me = req.user!._id;
 
-    let filter: Record<string, unknown>;
-    if (role === Role.WORKER) filter = { worker: userId };
-    else if (role === Role.USER) filter = { customer: userId };
-    else throw new AppError("Unauthorized role for fetching bookings", 403);
-
-    const status = req.query.status as string | undefined;
-    if (status) {
-      if (!Object.values(BookingStatus).includes(status as BookingStatus)) {
-        throw new AppError("Invalid status filter", 400);
+    const bookings = await Booking.find({
+      _id: id,
+      $or: [{ customer: me }, { worker: me }],
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+      if (!bookings) {
+        throw new AppError("No bookings found for this user", 404);
       }
-      filter.status = status;
-    }
-
-    const [bookings, total] = await Promise.all([
-      Booking.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .populate("customer worker", "full_name phone")
-        .lean(),
-      Booking.countDocuments(filter),
-    ]);
 
     sendResponse(res, {
       message: "All bookings fetched",
-      data: { bookings, total, page, pages: Math.ceil(total / limit) },
+      data: bookings,
       statusCode: 200,
     });
   },
