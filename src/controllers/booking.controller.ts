@@ -88,53 +88,6 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-//! accept booking
-export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
-  if (req.user!.role !== Role.WORKER) {
-    throw new AppError("Only workers can accept bookings", 403);
-  }
-
-  const { id } = req.params;
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError("Invalid booking ID", 400);
-  }
-
-  const worker = await WorkerProfile.findOne({ user: req.user!._id });
-  if (!worker) {
-    throw new AppError("Worker profile not found", 404);
-  }
-  if (!worker.isAvailable) {
-    throw new AppError("You are currently marked as unavailable", 403);
-  }
-
-  const booking = await Booking.findOneAndUpdate(
-    {
-      _id: id,
-      status: BookingStatus.Requested,
-      expiresAt: { $gt: new Date() },
-      serviceType: { $in: worker.skills },
-    },
-    {
-      $set: {
-        status: BookingStatus.Accepted,
-        worker: req.user!._id,
-      },
-    },
-    { returnDocument: "after" },
-  );
-  if (!booking) {
-    throw new AppError(
-      "Booking not found or not in a state to be accepted",
-      404,
-    );
-  }
-  sendResponse(res, {
-    message: "Booking accepted successfully",
-    data: booking,
-    statusCode: 200,
-  });
-});
-
 //! get available bookings for workers
 export const getAvailableBookings = catchAsync(
   async (req: Request, res: Response) => {
@@ -197,6 +150,87 @@ export const getAvailableBookings = catchAsync(
   },
 );
 
+//! accept booking
+export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
+  if (req.user!.role !== Role.WORKER) {
+    throw new AppError("Only workers can accept bookings", 403);
+  }
+
+  const { id } = req.params;
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError("Invalid booking ID", 400);
+  }
+
+  const worker = await WorkerProfile.findOne({ user: req.user!._id });
+  if (!worker) {
+    throw new AppError("Worker profile not found", 404);
+  }
+  if (!worker.isAvailable) {
+    throw new AppError("You are currently marked as unavailable", 403);
+  }
+
+  const booking = await Booking.findOneAndUpdate(
+    {
+      _id: id,
+      status: BookingStatus.Requested,
+      expiresAt: { $gt: new Date() },
+      serviceType: { $in: worker.skills },
+    },
+    {
+      $set: {
+        status: BookingStatus.Accepted,
+        worker: req.user!._id,
+      },
+    },
+    { returnDocument: "after" },
+  );
+  if (!booking) {
+    throw new AppError(
+      "Booking not found or not in a state to be accepted",
+      404,
+    );
+  }
+  sendResponse(res, {
+    message: "Booking accepted successfully",
+    data: booking,
+    statusCode: 200,
+  });
+});
+
+//! booking lifecycle
+const parseId = (id: unknown) => {
+  if (typeof id !== "string" || !mongoose.isValidObjectId(id)) {
+    throw new AppError("Invalid booking ID", 400);
+  }
+  return id;
+};
+
+//! workersStep (Accepted -> EnRoute -> InProgress)
+const workerStep = (from: BookingStatus, to: BookingStatus, message: string) =>
+  catchAsync(async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    const booking = await Booking.findOneAndUpdate(
+      { _id: id, worker: req.user!._id, status: from },
+      { $set: { status: to } },
+      { returnDocument: "after" },
+    );
+    if (!booking) {
+      throw new AppError(`Booking not found or it is not in ${from} status`, 409);
+    }
+    sendResponse(res, { message, data: booking, statusCode: 200 });
+  });
+
+export const markEnRoute = workerStep(
+  BookingStatus.Accepted,
+  BookingStatus.EnRoute,
+  "You are on the way",
+);
+export const startWork = workerStep(
+  BookingStatus.EnRoute,
+  BookingStatus.InProgress,
+  "Work started",
+);
+
 //! get my bookings
 export const getAllBookings = catchAsync(
   async (req: Request, res: Response) => {
@@ -235,6 +269,7 @@ export const getAllBookings = catchAsync(
   },
 );
 
+//! expire bookings 
 export const expireBookings = () => {
   setInterval(async () => {
     try {
