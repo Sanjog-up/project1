@@ -317,22 +317,32 @@ export const cancelBooking = catchAsync(async (req: Request, res: Response) => {
   //! get my bookings
 export const getAllBookings = catchAsync(
   async (req: Request, res: Response) => {
-    const id = parseId(req.user!._id.toString());
     const me = req.user!._id;
+    const { page, limit, skip } = getPagination(req.query);
 
-    const bookings = await Booking.find({
-      _id: id,
+    const filter: Record<string, unknown> = {
       $or: [{ customer: me }, { worker: me }],
-    })
-      .sort({ createdAt: -1 })
-      .lean();
-      if (!bookings) {
-        throw new AppError("No bookings found for this user", 404);
+    };
+    if(typeof req.query.status === "string" ){
+      if(!Object.values(BookingStatus).includes(req.query.status as BookingStatus)){
+        throw new AppError("Invalid status filter", 400);
       }
+      filter.status = req.query.status;
+    }
+
+    const [bookings, total] = await Promise.all([
+      Booking.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("customer worker", "full_name +phone")
+        .lean(),
+      Booking.countDocuments(filter),
+    ]);
 
     sendResponse(res, {
       message: "All bookings fetched",
-      data: bookings,
+      data: { bookings, total, page, pages: Math.ceil(total / limit) },
       statusCode: 200,
     });
   },
