@@ -24,12 +24,13 @@ export interface IBooking extends Document {
   scheduledAt?: Date;
   price?: number;
   completedAt?: Date;
-  cancelledBy?: "Customer" | "Worker";
+  cancelledBy?: "User" | "Worker";
   cancellationReason?: string;
   paymentStatus: "Pending" | "Paid" | "Refunded";
   createdAt: Date;
   updatedAt: Date;
   expiresAt: Date;
+  cancelledAt?: Date;
 }
 
 const bookingSchema = new Schema<IBooking>(
@@ -66,8 +67,9 @@ const bookingSchema = new Schema<IBooking>(
     completedAt: { type: Date },
     cancelledBy: {
       type: String,
-      enum: ["Customer", "Worker"],
+      enum: ["User", "Worker"],
     },
+    cancelledAt: { type: Date },
     cancellationReason: { type: String, trim: true, maxlength: [300, "Cancellation reason cannot exceed 300 characters"] },
     price: { type: Number, min: [0, "Price cannot be negative"] },
     paymentStatus: {

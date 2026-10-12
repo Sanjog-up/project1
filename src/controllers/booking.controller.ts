@@ -19,12 +19,12 @@ const booking_exp_time = 15;
 
 //! createbooking
 export const createBooking = catchAsync(async (req: Request, res: Response) => {
-  const { serviceType, description, location, scheduledAt } = req.body;
+  const { serviceType, description, location, scheduledAt } = req.body ?? {};
   if (req.user!.role !== Role.USER) {
     throw new AppError("Only users can create bookings", 403);
   }
   if (typeof serviceType !== "string" || !serviceType.trim()) {
-    throw new AppError("Invalid serviceType or address type", 400);
+    throw new AppError("Service type is required ", 400);
   }
   if (typeof location?.address !== "string" || !location.address.trim()) {
     throw new AppError(
@@ -41,8 +41,10 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
       400,
     );
   }
-  const lng = Number(location.coordinates[0]);
-  const lat = Number(location.coordinates[1]);
+  const [lng, lat] = location.coordinates;
+  if (typeof lng !== "number" || typeof lat !== "number") {
+    throw new AppError("Coordinates must be numbers [lng, lat]", 400);
+  }
 
   if (
     lng < -180 ||
@@ -56,6 +58,10 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
       "Longitude must be between -180 and 180, latitude must be between -90 and 90.",
       400,
     );
+  }
+
+  if (description !== undefined && (typeof description !== "string" || description.trim().length > 300)) {
+    throw new AppError("Description must be a string with a maximum length of 300 characters", 400);
   }
 
   let scheduledDate: Date | undefined;
@@ -76,7 +82,7 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     location: {
       type: "Point",
       coordinates: [lng, lat],
-      address: location.address,
+      address: location.address.trim(),
     },
     scheduledAt: scheduledDate,
     expiresAt,
@@ -132,7 +138,7 @@ export const getAvailableBookings = catchAsync(
     };
     const wanted =
       typeof req.query.serviceType === "string"
-        ? (filter.serviceType = req.query.serviceType.trim().toLowerCase())
+        ? req.query.serviceType.trim().toLowerCase()
         : undefined;
     filter.serviceType = {
       $in: wanted ? worker.skills.filter((s) => s === wanted) : worker.skills,
@@ -237,73 +243,96 @@ export const startWork = workerStep(
 );
 
 //! booking completion
-export const completeBooking = catchAsync(async (req: Request, res: Response) => {
-  const id = parseId(req.params.id); 
-  const booking = await Booking.findOneAndUpdate(
-    { _id: id, worker: req.user!._id, status: BookingStatus.InProgress },
-    { $set: { status: BookingStatus.Completed, completedAt: new Date() } },
-    { returnDocument: "after" },
-  );
-  if (!booking) {
-    throw new AppError(
-      "Booking not found or it is not in InProgress status",
-      409,
+export const completeBooking = catchAsync(
+  async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    const booking = await Booking.findOneAndUpdate(
+      { _id: id, worker: req.user!._id, status: BookingStatus.InProgress },
+      { $set: { status: BookingStatus.Completed, completedAt: new Date() } },
+      { returnDocument: "after" },
     );
-  }
-  sendResponse(res, {
-    message: "Booking completed successfully",
-    data: booking,
-    statusCode: 200,
-  });
-});
+    if (!booking) {
+      throw new AppError(
+        "Booking not found or it is not in InProgress status",
+        409,
+      );
+    }
+    sendResponse(res, {
+      message: "Booking completed successfully",
+      data: booking,
+      statusCode: 200,
+    });
+  },
+);
 
 //! booking release
-export const releaseBooking = catchAsync(async (req: Request, res: Response) => {
-  const id = parseId(req.params.id);
-  const filter: Record<string, unknown> = {
-    _id: id,
-    worker: req.user!._id,
-    status: { $in : [BookingStatus.Accepted, BookingStatus.EnRoute] },
-  };
-  const currentBooking = await Booking.findOne(filter);
-  if (!currentBooking) {
-    throw new AppError(
-      "Booking not found or it is not in Accepted or EnRoute status",
-      409,
-    );
-  }
-  const expiresAt = currentBooking.scheduledAt ??  new Date(Date.now() + booking_exp_time * 60 * 1000); // 15 minutes from now
+export const releaseBooking = catchAsync(
+  async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    const filter: Record<string, unknown> = {
+      _id: id,
+      worker: req.user!._id,
+      status: { $in: [BookingStatus.Accepted, BookingStatus.EnRoute] },
+    };
+    const currentBooking = await Booking.findOne(filter);
+    if (!currentBooking) {
+      throw new AppError(
+        "Booking not found or it is not in Accepted or EnRoute status",
+        409,
+      );
+    }
+    const expiresAt =
+      currentBooking.scheduledAt ??
+      new Date(Date.now() + booking_exp_time * 60 * 1000); // 15 minutes from now
 
-  const booking = await Booking.findOneAndUpdate(
-    filter,
-    {$set: {status: BookingStatus.Requested,expiresAt}, $unset: { worker: 1 }},
-    { returnDocument: "after" },
-  );
-  if (!booking) {
-    throw new AppError(
-      "Booking not found or it is not in Accepted or EnRoute status",
-      409,
+    const booking = await Booking.findOneAndUpdate(
+      filter,
+      {
+        $set: { status: BookingStatus.Requested, expiresAt },
+        $unset: { worker: 1 },
+      },
+      { returnDocument: "after" },
     );
-  }
-  sendResponse(res, {
-    message: "Booking released successfully",
-    data: booking,
-    statusCode: 200,
-  });
-});
+    if (!booking) {
+      throw new AppError(
+        "Booking not found or it is not in Accepted or EnRoute status",
+        409,
+      );
+    }
+    sendResponse(res, {
+      message: "Booking released successfully",
+      data: booking,
+      statusCode: 200,
+    });
+  },
+);
 
 //! cancel booking
 export const cancelBooking = catchAsync(async (req: Request, res: Response) => {
   const id = parseId(req.params.id);
-  const reason = typeof req.body.reason === "string" ? req.body.reason.trim().slice(0, 300) : undefined;
+  const cancellationReason =
+    typeof req.body?.reason === "string"
+      ? req.body.reason.trim().slice(0, 300)
+      : undefined;
   const booking = await Booking.findOneAndUpdate(
-    { _id: id, customer: req.user!._id, status: { $in: [BookingStatus.Requested, BookingStatus.Accepted] } },
-    { $set: { status: BookingStatus.Cancelled, cancelledAt: new Date(), cancelReason: reason, cancelledBy: "User" } },
+    {
+      _id: id,
+      customer: req.user!._id,
+      status: { $in: [BookingStatus.Requested, BookingStatus.Accepted] },
+    },
+    {
+      $set: {
+        status: BookingStatus.Cancelled,
+        cancelledAt: new Date(),
+        cancellationReason,
+        cancelledBy: "User",
+      },
+    },
     { returnDocument: "after" },
   );
   if (!booking) {
     throw new AppError(
-      "Booking not found or it is not in Requested status",
+      "Booking not found or it can no longer be cancelled",
       409,
     );
   }
@@ -314,7 +343,7 @@ export const cancelBooking = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-  //! get my bookings
+//! get my bookings
 export const getAllBookings = catchAsync(
   async (req: Request, res: Response) => {
     const me = req.user!._id;
@@ -323,8 +352,12 @@ export const getAllBookings = catchAsync(
     const filter: Record<string, unknown> = {
       $or: [{ customer: me }, { worker: me }],
     };
-    if(typeof req.query.status === "string" ){
-      if(!Object.values(BookingStatus).includes(req.query.status as BookingStatus)){
+    if (typeof req.query.status === "string") {
+      if (
+        !Object.values(BookingStatus).includes(
+          req.query.status as BookingStatus,
+        )
+      ) {
         throw new AppError("Invalid status filter", 400);
       }
       filter.status = req.query.status;
