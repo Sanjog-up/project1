@@ -197,15 +197,13 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-//! booking lifecycle
+//! booking lifecycle (Accepted -> EnRoute -> InProgress)
 const parseId = (id: unknown) => {
   if (typeof id !== "string" || !mongoose.isValidObjectId(id)) {
     throw new AppError("Invalid booking ID", 400);
   }
   return id;
 };
-
-//! workersStep (Accepted -> EnRoute -> InProgress)
 const workerStep = (from: BookingStatus, to: BookingStatus, message: string) =>
   catchAsync(async (req: Request, res: Response) => {
     const id = parseId(req.params.id);
@@ -215,9 +213,16 @@ const workerStep = (from: BookingStatus, to: BookingStatus, message: string) =>
       { returnDocument: "after" },
     );
     if (!booking) {
-      throw new AppError(`Booking not found or it is not in ${from} status`, 409);
+      throw new AppError(
+        `Booking not found or it is not in ${from} status`,
+        409,
+      );
     }
-    sendResponse(res, { message, data: booking, statusCode: 200 });
+    sendResponse(res, {
+      message,
+      data: booking,
+      statusCode: 200,
+    });
   });
 
 export const markEnRoute = workerStep(
@@ -230,6 +235,30 @@ export const startWork = workerStep(
   BookingStatus.InProgress,
   "Work started",
 );
+
+//! booking completion
+export const completeBooking = catchAsync(async (req: Request, res: Response) => {
+  const id = parseId(req.params.id); 
+  const booking = await Booking.findOneAndUpdate(
+    { _id: id, worker: req.user!._id, status: BookingStatus.InProgress },
+    { $set: { status: BookingStatus.Completed, completedAt: new Date() } },
+    { returnDocument: "after" },
+  );
+  if (!booking) {
+    throw new AppError(
+      "Booking not found or it is not in InProgress status",
+      409,
+    );
+  }
+  sendResponse(res, {
+    message: "Booking completed successfully",
+    data: booking,
+    statusCode: 200,
+  });
+});
+
+
+
 
 //! get my bookings
 export const getAllBookings = catchAsync(
@@ -269,7 +298,7 @@ export const getAllBookings = catchAsync(
   },
 );
 
-//! expire bookings 
+//! expire bookings
 export const expireBookings = () => {
   setInterval(async () => {
     try {
