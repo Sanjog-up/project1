@@ -60,8 +60,14 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     );
   }
 
-  if (description !== undefined && (typeof description !== "string" || description.trim().length > 300)) {
-    throw new AppError("Description must be a string with a maximum length of 300 characters", 400);
+  if (
+    description !== undefined &&
+    (typeof description !== "string" || description.trim().length > 300)
+  ) {
+    throw new AppError(
+      "Description must be a string with a maximum length of 300 characters",
+      400,
+    );
   }
 
   let scheduledDate: Date | undefined;
@@ -394,3 +400,24 @@ export const expireBookings = () => {
     }
   }, 60 * 1000); // Run every minute
 };
+
+//! get booking by ID
+export const getBookingById = catchAsync(
+  async (req: Request, res: Response) => {
+    const id = parseId(req.params.id);
+    const booking = await Booking.findOne({
+      _id: id,
+      $or: [{ customer: req.user!._id }, { worker: req.user!._id }],
+    })
+      .populate("customer worker", "full_name +phone")
+      .lean();
+    if (!booking) {
+      throw new AppError("Booking not found", 404);
+    }
+    sendResponse(res, {
+      message: "Booking fetched successfully",
+      data: booking,
+      statusCode: 200,
+    });
+  },
+); 
