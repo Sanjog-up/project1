@@ -1,3 +1,4 @@
+import { Booking } from './../models/booking.model';
 import { Request, Response } from "express";
 import { Booking, BookingStatus } from "../models/booking.model";
 import { catchAsync } from "../utils/catchAsync.utils";
@@ -257,8 +258,8 @@ export const completeBooking = catchAsync(async (req: Request, res: Response) =>
   });
 });
 
-//! booking rejection
-export const rejectBooking = catchAsync(async (req: Request, res: Response) => {
+//! booking release
+export const releaseBooking = catchAsync(async (req: Request, res: Response) => {
   const id = parseId(req.params.id);
   const filter: Record<string, unknown> = {
     _id: id,
@@ -286,13 +287,35 @@ export const rejectBooking = catchAsync(async (req: Request, res: Response) => {
     );
   }
   sendResponse(res, {
-    message: "Booking rejected successfully",
+    message: "Booking released successfully",
     data: booking,
     statusCode: 200,
   });
 });
 
-//! get my bookings
+//! cancel booking
+export const cancelBooking = catchAsync(async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  const reason = typeof req.body.reason === "string" ? req.body.reason.trim().slice(0, 300) : undefined;
+  const booking = await Booking.findOneAndUpdate(
+    { _id: id, customer: req.user!._id, status: { $in: [BookingStatus.Requested, BookingStatus.Accepted] } },
+    { $set: { status: BookingStatus.Cancelled, cancelledAt: new Date(), cancelReason: reason, cancelledBy: "User" } },
+    { returnDocument: "after" },
+  );
+  if (!booking) {
+    throw new AppError(
+      "Booking not found or it is not in Requested status",
+      409,
+    );
+  }
+  sendResponse(res, {
+    message: "Booking cancelled successfully",
+    data: booking,
+    statusCode: 200,
+  });
+});
+
+  //! get my bookings
 export const getAllBookings = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.user!._id;
