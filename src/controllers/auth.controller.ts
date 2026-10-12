@@ -12,6 +12,7 @@ import { comparePassword, hashPassword } from "../utils/bcrypt.utilis";
 import { generateJwtToken } from "../utils/jwt.utilis";
 import { WorkerProfile } from "../models/worker.model";
 import { Role } from "../types/enum.types";
+import { Service } from "../models/services.model";
 
 const cookieOptions = () => {
   const dev = ENV_CONFIG.node_env === "development";
@@ -173,7 +174,23 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
   if (!Array.isArray(skills) || skills.length === 0 || !skills.every((s: unknown) => typeof s === "string" && s.trim())) {
     throw new AppError("skills must be a non-empty array", 400);
   }
-  const cleanedSkills = skills.map((s: string) => s.trim());
+  const cleanedSkills: string[] = Array.from(
+    new Set(skills.map((s: string) => s.trim().toLowerCase()))
+  );
+
+  const validServices = await Service.find({ 
+  slug: { $in: cleanedSkills },
+  isActive: true })
+  .lean()
+  .select("slug");
+  if (validServices.length !== cleanedSkills.length) {
+    const validSlugs = validServices.map((s) => s.slug);
+    const invalidSkills = cleanedSkills.filter((s) => !validSlugs.includes(s));
+    throw new AppError(
+      `Invalid skills provided: ${invalidSkills.join(", ")}. Please provide valid skills.`,
+      400,
+    );
+  }
 
   if (!bio || bio.length < 25) {
     throw new AppError(
@@ -197,7 +214,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     );
   }
 
-  const promoted = await User.findByIdAndUpdate(
+  const promoted = await User.findOneAndUpdate(
     { _id: userId, role: Role.USER },
     { role: Role.WORKER },
     { returnDocument: "after" },
@@ -235,7 +252,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
 
   sendResponse(res, {
     message: "Successfully registered as worker",
-    data: workerProfile,
+    data: {workerProfile, access_token},
     statusCode: 201,
   });
 });
