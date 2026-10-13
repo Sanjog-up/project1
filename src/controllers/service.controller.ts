@@ -87,3 +87,23 @@ export const updateService = catchAsync(async (req: Request, res: Response) => {
 
     sendResponse(res, { message: "Service updated successfully", data: service, statusCode: 200 });
 });
+
+//! get service by id
+export const getServiceById = catchAsync(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    if (typeof id !== "string" ) {
+        throw new AppError("Invalid service ID", 400);
+    } 
+    const service = mongoose.isValidObjectId(id) 
+    ? await Service.findById({ _id: id, isActive: true }) 
+    : await Service.findOne({ slug: id.toLowerCase(), isActive: true });
+
+    if(!service) {
+        throw new AppError("Service not found", 404);
+    }
+
+    sendResponse(res, { 
+        message: "Service fetched successfully", 
+        data: service, 
+        statusCode: 200 });
+});
