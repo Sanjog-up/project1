@@ -36,7 +36,11 @@ export const createService = catchAsync(async (req: Request, res: Response) => {
     }
 
     const service = await Service.create({ name: name.trim(), slug, description, price });
-    sendResponse(res, { message: "Service created successfully", data: service, statusCode: 201 });
+    sendResponse(res, { 
+        message: "Service created successfully",
+        data: service, 
+        statusCode: 201 
+    });
 });
 
 //! update service 

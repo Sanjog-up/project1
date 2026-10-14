@@ -110,8 +110,7 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
 });
 
 //! get available bookings for workers
-export const getAvailableBookings = catchAsync(
-  async (req: Request, res: Response) => {
+export const getAvailableBookings = catchAsync(async (req: Request, res: Response) => {
     if (req.user!.role !== Role.WORKER) {
       throw new AppError("Only workers can view available bookings", 403);
     }
@@ -154,9 +153,9 @@ export const getAvailableBookings = catchAsync(
       },
     };
     const wanted =
-      typeof req.query.serviceType === "string"
-        ? req.query.serviceType.trim().toLowerCase()
-        : undefined;
+      typeof req.query.serviceType === "string" 
+      ? req.query.serviceType.trim().toLowerCase()
+      : undefined;
     filter.serviceType = {
       $in: wanted ? worker.skills.filter((s) => s === wanted) : worker.skills,
     };
@@ -165,6 +164,7 @@ export const getAvailableBookings = catchAsync(
       .limit(POOL_LIMIT)
       .populate("customer", "full_name")
       .lean();
+
     sendResponse(res, {
       message: "Available bookings fetched",
       data: { bookings, radiusKm },
