@@ -93,7 +93,7 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     customer: req.user!._id,
     serviceType: serviceExists.slug,
     price: serviceExists.price,
-    description,
+    description: description?.trim(),
     location: {
       type: "Point",
       coordinates: [lng, lat],
@@ -119,8 +119,10 @@ export const getAvailableBookings = catchAsync(
     if (!worker) {
       throw new AppError("Worker profile not found", 404);
     }
-    const lng = Number(req.query.lng);
-    const lat = Number(req.query.lat);
+    const toNum = (v: unknown)  => 
+      typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+    const lng = toNum(req.query.lng);
+    const lat = toNum(req.query.lat);
     if (
       req.query.lng === undefined ||
       req.query.lat === undefined ||

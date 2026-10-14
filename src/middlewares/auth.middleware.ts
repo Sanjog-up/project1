@@ -62,9 +62,16 @@ export const authenticate = (roles?: Role[]) => {
         ? authHeader.split(" ")[1]
         : undefined;
 
-      const token = cookieToken || bearerToken;
+      const token = bearerToken || cookieToken;
       if (!token) {
         throw new AppError("Not logged in", 401);
+      }
+      if(!bearerToken && ["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+        const origin = req.headers.origin;
+        const allowed = ENV_CONFIG.allow_origin.split(",").map((s) => s.trim());
+        if( origin && !allowed.includes(origin)) {
+          throw new AppError("Origin not allowed", 403);
+        }
       }
 
       const payload = signInWithToken(token);
@@ -89,6 +96,3 @@ export const authenticate = (roles?: Role[]) => {
     }
   };
 };
-
-// Backward compatible alias
-export const protect = authenticate();

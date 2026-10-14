@@ -35,7 +35,7 @@ const clearAuthCookie = (res: Response) =>
 
 const folder = "/profile_image";
 export const Register = catchAsync(async (req: Request, res: Response) => {
-  const { full_name, email, password, phone } = req.body;
+  const { full_name, email, password, phone } = req.body ?? {};
   const image = req.file;
   if (!full_name || typeof full_name !== "string" || full_name.trim().length < 3) {
     throw new AppError("full_name is required and must be at least 3 characters long", 400);
@@ -103,7 +103,7 @@ export const Register = catchAsync(async (req: Request, res: Response) => {
 
 //! login
 export const login = catchAsync(async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body ?? {};
 
   if (typeof email !== "string" || !email) {
     throw new AppError("email is required", 400);
@@ -169,7 +169,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
   }
 
   const { skills, experience, bio, hourlyRate, serviceRadiusKm, location } =
-    req.body;
+    req.body ?? {};
 
   if (!Array.isArray(skills) || skills.length === 0 || !skills.every((s: unknown) => typeof s === "string" && s.trim())) {
     throw new AppError("skills must be a non-empty array", 400);

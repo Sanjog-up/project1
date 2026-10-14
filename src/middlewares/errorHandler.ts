@@ -35,7 +35,6 @@ export const errorHandler = (
 
     //! validation error
     if (error.name === "ValidationError") {
-        console.log(error);
         statusCode = 422;
         status = "fail";
         message = Object.values(error.errors)

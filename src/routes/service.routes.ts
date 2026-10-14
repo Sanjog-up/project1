@@ -18,5 +18,3 @@ router.put("/:id", authenticate(Only_Admins), updateService);
 router.get("/:id", getServiceById);
 
 export default router;
-
-
