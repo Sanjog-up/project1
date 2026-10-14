@@ -11,6 +11,8 @@ const workerSchema = new mongoose.Schema({
     },
     skills: {
         type: [String],
+        lowercase: true,
+        trim: true,
         required: [true, "skills is required"],
         validate: {
             validator: (arr: string[]) => arr.length > 0,

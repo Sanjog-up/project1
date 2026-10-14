@@ -1,17 +1,17 @@
 import express from "express";
-import { createBooking, acceptBooking, getAllBookings, getAvailableBookings, getBookingById, markEnRoute, cancelBooking, completeBooking,  releaseBooking } from "../controllers/booking.controller";
+import { createBooking, acceptBooking, getAllBookings, getAvailableBookings, getBookingById, markEnRoute, startWork, cancelBooking, completeBooking,  releaseBooking } from "../controllers/booking.controller";
 import { authenticate } from "../middlewares/auth.middleware";
 import { Role } from "../types/enum.types";
 
 const router = express.Router();
 
-//! create booking (authenticated)
+//! create booking (user)
 router.post("/", authenticate([Role.USER]), createBooking);
 
 //! accept booking
 router.patch("/:id/accept", authenticate([Role.WORKER]), acceptBooking);
 
-//! get all bookings for client (authenticated)
+//! get all bookings for client and worker
 router.get("/", authenticate([Role.USER, Role.WORKER]), getAllBookings); 
 
 //! get available bookings for workers
@@ -22,6 +22,9 @@ router.get("/:id", authenticate([Role.USER, Role.WORKER]), getBookingById);
 
 //! mark booking as en route
 router.patch("/:id/en-route", authenticate([Role.WORKER]), markEnRoute);
+
+//! start work on booking
+router.patch("/:id/start", authenticate([Role.WORKER]), startWork);
 
 //! cancel booking
 router.patch("/:id/cancel", authenticate([Role.USER]), cancelBooking);
