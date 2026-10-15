@@ -36,7 +36,8 @@ const required = [
     "CLOUDINARY_CLOUD_NAME",
     "CLOUDINARY_API_KEY",
     "CLOUDINARY_API_SECRET",
-    "ALLOW_ORIGIN"
+    "ALLOW_ORIGIN",
+    "COOKIE_EXPIRY",
 ] as const;
 const missing = required.filter((key) => !process.env[key]);
 if (missing.length) {

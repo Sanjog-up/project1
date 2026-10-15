@@ -385,7 +385,10 @@ export const getAllBookings = catchAsync(
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
-        .populate("customer worker", "full_name +phone")
+        .populate([
+          { path: "customer", select: "full_name phone"},
+          { path: "worker", select: "full_name phone"},
+        ])
         .lean(),
       Booking.countDocuments(filter),
     ]);

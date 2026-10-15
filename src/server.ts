@@ -2,9 +2,10 @@ import "dotenv/config";
 import app from "./app";
 import connectDatabase from "./config/db.config";
 import { expireBookings } from "./controllers/booking.controller";
+import ENV_CONFIG from "./config/env.config";
 
 const PORT = process.env.PORT || 8000;
-const DB_URI = process.env.DB_URI as string;
+const DB_URI = ENV_CONFIG.db_uri as string;
 
 export const server = async() => {
     await connectDatabase(DB_URI)

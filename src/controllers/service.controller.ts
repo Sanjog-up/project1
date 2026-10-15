@@ -99,7 +99,7 @@ export const getServiceById = catchAsync(async (req: Request, res: Response) => 
         throw new AppError("Invalid service ID", 400);
     } 
     const service = mongoose.isValidObjectId(id) 
-    ? await Service.findById({ _id: id, isActive: true }) 
+    ? await Service.findOne({ _id: id, isActive: true }) 
     : await Service.findOne({ slug: id.toLowerCase(), isActive: true });
 
     if(!service) {

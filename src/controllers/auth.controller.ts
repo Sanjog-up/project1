@@ -21,6 +21,7 @@ const cookieOptions = () => {
     secure: !dev,
     sameSite: (dev ? "lax" : "none") as "lax" | "none",
     path: "/",
+    maxAge: parseInt(ENV_CONFIG.cookie_express || "7", 10) * 24 * 60 * 60 * 1000
   };
 };
 
@@ -232,6 +233,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
   const citizenshipFile = files?.citizenship?.[0];
   const licenseFile = files?.license?.[0];
   const nidFile = files?.nid?.[0];
+
 
   if (!citizenshipFile ) {
     throw new AppError("citizenship document is required", 400);
