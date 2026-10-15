@@ -37,14 +37,24 @@ const folder = "/profile_image";
 export const Register = catchAsync(async (req: Request, res: Response) => {
   const { full_name, email, password, phone } = req.body ?? {};
   const image = req.file;
-  if (!full_name || typeof full_name !== "string" || full_name.trim().length < 3) {
-    throw new AppError("full_name is required and must be at least 3 characters long", 400);
+  if (
+    !full_name ||
+    typeof full_name !== "string" ||
+    full_name.trim().length < 3
+  ) {
+    throw new AppError(
+      "full_name is required and must be at least 3 characters long",
+      400,
+    );
   }
   if (!email || typeof email !== "string") {
     throw new AppError("email is required", 400);
   }
   if (!password || typeof password !== "string" || password.length < 6) {
-    throw new AppError("password is required and must be at least 6 characters long", 400);
+    throw new AppError(
+      "password is required and must be at least 6 characters long",
+      400,
+    );
   }
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -171,18 +181,24 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
   const { skills, experience, bio, hourlyRate, serviceRadiusKm, location } =
     req.body ?? {};
 
-  if (!Array.isArray(skills) || skills.length === 0 || !skills.every((s: unknown) => typeof s === "string" && s.trim())) {
+  if (
+    !Array.isArray(skills) ||
+    skills.length === 0 ||
+    !skills.every((s: unknown) => typeof s === "string" && s.trim())
+  ) {
     throw new AppError("skills must be a non-empty array", 400);
   }
   const cleanedSkills: string[] = Array.from(
-    new Set(skills.map((s: string) => s.trim().toLowerCase()))
+    new Set(skills.map((s: string) => s.trim().toLowerCase())),
   );
 
-  const validServices = await Service.find({ 
-  slug: { $in: cleanedSkills },
-  isActive: true })
-  .lean()
-  .select("slug");
+  const validServices = await Service.find({
+    slug: { $in: cleanedSkills },
+    isActive: true,
+  })
+    .lean()
+    .select("slug");
+
   if (validServices.length !== cleanedSkills.length) {
     const validSlugs = validServices.map((s) => s.slug);
     const invalidSkills = cleanedSkills.filter((s) => !validSlugs.includes(s));
@@ -202,9 +218,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
   if (
     !Array.isArray(coords) ||
     coords.length !== 2 ||
-    !coords.every(
-      (c: unknown) => typeof c === "number" && Number.isFinite(c),
-    ) ||
+    !coords.every((c: unknown) => typeof c === "number" && Number.isFinite(c)) ||
     Math.abs(coords[0]) > 180 ||
     Math.abs(coords[1]) > 90
   ) {
@@ -214,34 +228,67 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     );
   }
 
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+  const citizenshipFile = files?.citizenship?.[0];
+  const licenseFile = files?.license?.[0];
+  const nidFile = files?.nid?.[0];
+
+  if (!citizenshipFile ) {
+    throw new AppError("citizenship document is required", 400);
+  }
+
+  const licenseRequiredSkills = ["electrician", "plumber", "driver"]
+  const needsLicense = cleanedSkills.some((s)=> licenseRequiredSkills.includes(s));
+  if(needsLicense && !licenseFile){
+    throw new AppError("License document is required for the selected skill", 400)
+  }
+
   const promoted = await User.findOneAndUpdate(
     { _id: userId, role: Role.USER },
     { role: Role.WORKER },
     { returnDocument: "after" },
   );
-  if(!promoted){
+  if (!promoted) {
     throw new AppError("Only normal users can be registered as worker", 409);
   }
 
-  let workerProfile;
-  try {
-    workerProfile = await WorkerProfile.create({
+  let citizenshipDoc;
+  let licenseDoc;
+  let nidDoc;
+  try{
+    citizenshipDoc = await sendFileToCloudinary(
+      citizenshipFile, "/worker_documents/citizenship");
+
+    if(licenseFile){
+      licenseDoc = await sendFileToCloudinary(
+        licenseFile, "/worker_documents/license"
+      )
+    }
+    
+    if(nidFile){
+      nidDoc = await sendFileToCloudinary(
+        nidFile, "/worker_documents/nid"
+      )
+    }
+  
+
+  const workerProfile = await WorkerProfile.create({
       user: userId,
       skills: cleanedSkills,
       experience: experience || 0,
       bio,
       hourlyRate: hourlyRate || 150,
       serviceRadiusKm: serviceRadiusKm || 10,
+      citizenship: [citizenshipDoc],
+      ...(licenseDoc && {license: licenseDoc}),
+      ...(nidDoc && { nid: nidDoc}),
       location: {
         type: "Point",
         coordinates: coords,
       },
     });
-  } catch (err) {
-    await User.findByIdAndUpdate(userId, { role: Role.USER });
-    throw err;
-  }
-  //* generate new access_token with updated role and set cookie 
+  
+  //* generate new access_token with updated role and set cookie
   const access_token = generateJwtToken({
     _id: promoted._id,
     full_name: promoted.full_name,
@@ -252,7 +299,22 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
 
   sendResponse(res, {
     message: "Successfully registered as worker",
-    data: {workerProfile, access_token},
+    data: { workerProfile, access_token },
     statusCode: 201,
   });
+}
+   catch (err) {
+    //* rollback 
+    await User.findByIdAndUpdate(userId, { role: Role.USER });
+    if(citizenshipDoc?.public_id){
+      await deleteFileFromCloudinary(citizenshipDoc.public_id);
+    }
+    if(licenseDoc?.public_id){
+      await deleteFileFromCloudinary(licenseDoc.public_id);
+    }
+    if(nidDoc?.public_id){
+      await deleteFileFromCloudinary(nidDoc.public_id);
+    }
+    throw err;
+  }
 });
