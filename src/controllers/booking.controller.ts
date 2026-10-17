@@ -386,8 +386,8 @@ export const getAllBookings = catchAsync(
         .skip(skip)
         .limit(limit)
         .populate([
-          { path: "customer", select: "full_name phone"},
-          { path: "worker", select: "full_name phone"},
+          { path: "customer", select: "full_name +phone"},
+          { path: "worker", select: "full_name +phone"},
         ])
         .lean(),
       Booking.countDocuments(filter),

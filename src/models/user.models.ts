@@ -32,8 +32,17 @@ const userSchema = new mongoose.Schema(
       enum: Object.values(Role),
       default: Role.USER,
     },
-
-  
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5
+    },
+    ratingCount: {
+      type: Number,
+      default: 0,
+      min: 0
+    },  
   //! profile image:{path: ``,public_id:``}
   profile_image:{
     type: {
