@@ -17,11 +17,12 @@ const authLimiter = rateLimit({
   limit: 10,
   standardHeaders: "draft-7",
   legacyHeaders: false,
-  message: { 
-    status: "fail", 
-    success: false, 
-    message: "Too many requests from this IP, please try again after 15 minutes" 
-}
+  message: {
+    status: "fail",
+    success: false,
+    message:
+      "Too many requests from this IP, please try again after 15 minutes",
+  },
 });
 
 //! Register
@@ -34,6 +35,15 @@ router.post("/login", authLimiter, login);
 router.post("/logout", logout);
 
 //! be worker
-router.post("/be-worker", authenticate(), beWorker);
+router.post(
+  "/be-worker",
+  authenticate(),
+  upload.fields([
+    { name: "citizenship", maxCount: 1 },
+    { name: "license", maxCount: 1 },
+    { name: "nid", maxCount: 1 },
+  ]),
+  beWorker,
+);
 
 export default router;
