@@ -13,6 +13,7 @@ import { generateJwtToken } from "../utils/jwt.utilis";
 import { WorkerProfile } from "../models/worker.model";
 import { Role } from "../types/enum.types";
 import { Service } from "../models/services.model";
+import { parseJsonField } from "../utils/parseJsonField.utils";
 
 const cookieOptions = () => {
   const dev = ENV_CONFIG.node_env === "development";
@@ -21,7 +22,8 @@ const cookieOptions = () => {
     secure: !dev,
     sameSite: (dev ? "lax" : "none") as "lax" | "none",
     path: "/",
-    maxAge: parseInt(ENV_CONFIG.cookie_express || "7", 10) * 24 * 60 * 60 * 1000
+    maxAge:
+      parseInt(ENV_CONFIG.cookie_express || "7", 10) * 24 * 60 * 60 * 1000,
   };
 };
 
@@ -179,8 +181,29 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     throw new AppError("You are already registered as worker", 400);
   }
 
-  const { skills, experience, bio, hourlyRate, serviceRadiusKm, location } =
-    req.body ?? {};
+  const body = req.body ?? {};
+  const skills = parseJsonField(body.skills, "skills");
+  const location = parseJsonField(body.location, "location");
+  const experience =
+    body.experience === undefined ? 0 : Number(body.experience);
+  const hourlyRate =
+    body.hourlyRate === undefined ? 150 : Number(body.hourlyRate);
+  const serviceRadiusKm =
+    body.serviceRadiusKm === undefined ? 10 : Number(body.serviceRadiusKm);
+  const bio = body.bio;
+  if (typeof bio !== "string" || bio.trim().length < 25) {
+    throw new AppError("bio is required % must be 25 chars long", 400);
+  }
+  if (
+    ![experience, hourlyRate, serviceRadiusKm].every(
+      (n) => Number.isFinite(n) && n >= 0,
+    )
+  ) {
+    throw new AppError(
+      "experience, hourlyrate & serviceradiuskm must be numbers",
+      400,
+    );
+  }
 
   if (
     !Array.isArray(skills) ||
@@ -219,7 +242,9 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
   if (
     !Array.isArray(coords) ||
     coords.length !== 2 ||
-    !coords.every((c: unknown) => typeof c === "number" && Number.isFinite(c)) ||
+    !coords.every(
+      (c: unknown) => typeof c === "number" && Number.isFinite(c),
+    ) ||
     Math.abs(coords[0]) > 180 ||
     Math.abs(coords[1]) > 90
   ) {
@@ -234,15 +259,19 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
   const licenseFile = files?.license?.[0];
   const nidFile = files?.nid?.[0];
 
-
-  if (!citizenshipFile ) {
+  if (!citizenshipFile) {
     throw new AppError("citizenship document is required", 400);
   }
 
-  const licenseRequiredSkills = ["electrician", "plumber", "driver"]
-  const needsLicense = cleanedSkills.some((s)=> licenseRequiredSkills.includes(s));
-  if(needsLicense && !licenseFile){
-    throw new AppError("License document is required for the selected skill", 400)
+  const licenseRequiredSkills = ["electrician", "plumber", "driver"];
+  const needsLicense = cleanedSkills.some((s) =>
+    licenseRequiredSkills.includes(s),
+  );
+  if (needsLicense && !licenseFile) {
+    throw new AppError(
+      "License document is required for the selected skill",
+      400,
+    );
   }
 
   const promoted = await User.findOneAndUpdate(
@@ -257,24 +286,24 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
   let citizenshipDoc;
   let licenseDoc;
   let nidDoc;
-  try{
+  try {
     citizenshipDoc = await sendFileToCloudinary(
-      citizenshipFile, "/worker_documents/citizenship");
+      citizenshipFile,
+      "/worker_documents/citizenship",
+    );
 
-    if(licenseFile){
+    if (licenseFile) {
       licenseDoc = await sendFileToCloudinary(
-        licenseFile, "/worker_documents/license"
-      )
+        licenseFile,
+        "/worker_documents/license",
+      );
     }
-    
-    if(nidFile){
-      nidDoc = await sendFileToCloudinary(
-        nidFile, "/worker_documents/nid"
-      )
-    }
-  
 
-  const workerProfile = await WorkerProfile.create({
+    if (nidFile) {
+      nidDoc = await sendFileToCloudinary(nidFile, "/worker_documents/nid");
+    }
+
+    const workerProfile = await WorkerProfile.create({
       user: userId,
       skills: cleanedSkills,
       experience: experience || 0,
@@ -282,41 +311,34 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
       hourlyRate: hourlyRate || 150,
       serviceRadiusKm: serviceRadiusKm || 10,
       citizenship: [citizenshipDoc],
-      ...(licenseDoc && {license: licenseDoc}),
-      ...(nidDoc && { nid: nidDoc}),
+      ...(licenseDoc && { license: licenseDoc }),
+      ...(nidDoc && { nid: nidDoc }),
       location: {
         type: "Point",
         coordinates: coords,
       },
     });
-  
-  //* generate new access_token with updated role and set cookie
-  const access_token = generateJwtToken({
-    _id: promoted._id,
-    full_name: promoted.full_name,
-    email: promoted.email,
-    role: promoted.role,
-  });
-  setAuthCookie(res, access_token);
 
-  sendResponse(res, {
-    message: "Successfully registered as worker",
-    data: { workerProfile, access_token },
-    statusCode: 201,
-  });
-}
-   catch (err) {
-    //* rollback 
-    await User.findByIdAndUpdate(userId, { role: Role.USER });
-    if(citizenshipDoc?.public_id){
-      await deleteFileFromCloudinary(citizenshipDoc.public_id);
-    }
-    if(licenseDoc?.public_id){
-      await deleteFileFromCloudinary(licenseDoc.public_id);
-    }
-    if(nidDoc?.public_id){
-      await deleteFileFromCloudinary(nidDoc.public_id);
-    }
+    //* generate new access_token with updated role and set cookie
+    const access_token = generateJwtToken({
+      _id: promoted._id,
+      full_name: promoted.full_name,
+      email: promoted.email,
+      role: promoted.role,
+    });
+    setAuthCookie(res, access_token);
+
+    sendResponse(res, {
+      message: "Successfully registered as worker",
+      data: { workerProfile, access_token },
+      statusCode: 201,
+    });
+  } catch (err) {
+    //* rollback
+    await Promise.allSettled([
+      User.findByIdAndUpdate(userId, { role: Role.USER}),
+      ...[citizenshipDoc, licenseDoc, nidDoc].filter(Boolean).map((d) => deleteFileFromCloudinary(d!.public_id))
+    ])
     throw err;
   }
 });
