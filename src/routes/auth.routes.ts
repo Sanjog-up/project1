@@ -39,7 +39,8 @@ router.post(
   "/be-worker",
   authenticate(),
   upload.fields([
-    { name: "citizenship", maxCount: 1 },
+    { name: "citizenship_front", maxCount: 1 },
+    { name: "citizenship_back", maxCount: 1 },
     { name: "license", maxCount: 1 },
     { name: "nid", maxCount: 1 },
   ]),

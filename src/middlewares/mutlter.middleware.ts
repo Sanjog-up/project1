@@ -72,6 +72,7 @@ export const multerUploader = ({
     fileFilter: fileFilter,
     limits: {
       fileSize: fileSize,
+      files: 4
     },
   });
   return upload;
