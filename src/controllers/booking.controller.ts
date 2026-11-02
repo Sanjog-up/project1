@@ -88,7 +88,7 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   });
   if (!serviceExists) {
     throw new AppError("Service type does not exist or is inactive", 400);
-  }  
+  }
   const booking = await Booking.create({
     customer: req.user!._id,
     serviceType: serviceExists.slug,
@@ -110,7 +110,8 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
 });
 
 //! get available bookings for workers
-export const getAvailableBookings = catchAsync(async (req: Request, res: Response) => {
+export const getAvailableBookings = catchAsync(
+  async (req: Request, res: Response) => {
     if (req.user!.role !== Role.WORKER) {
       throw new AppError("Only workers can view available bookings", 403);
     }
@@ -118,7 +119,10 @@ export const getAvailableBookings = catchAsync(async (req: Request, res: Respons
     if (!worker) {
       throw new AppError("Worker profile not found", 404);
     }
-    const toNum = (v: unknown)  => 
+    if (!worker.isVerified) {
+      throw new AppError("Your acc is pending verification", 403);
+    }
+    const toNum = (v: unknown) =>
       typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
     const lng = toNum(req.query.lng);
     const lat = toNum(req.query.lat);
@@ -137,10 +141,12 @@ export const getAvailableBookings = catchAsync(async (req: Request, res: Respons
       throw new AppError("Invalid or missing coordinates", 400);
     }
 
-    const radiusKm = Math.min(
+    const requestedRadius = Math.min(
       Math.max(Number(req.query.radius) || DEFAULT_RADIUS_KM, 1),
       MAX_RADIUS_KM,
     );
+
+    const radiusKm = Math.min(requestedRadius, worker.serviceRadiusKm);
 
     const filter: Record<string, unknown> = {
       status: BookingStatus.Requested,
@@ -153,17 +159,28 @@ export const getAvailableBookings = catchAsync(async (req: Request, res: Respons
       },
     };
     const wanted =
-      typeof req.query.serviceType === "string" 
-      ? req.query.serviceType.trim().toLowerCase()
-      : undefined;
+      typeof req.query.serviceType === "string"
+        ? req.query.serviceType.trim().toLowerCase()
+        : undefined;
     filter.serviceType = {
       $in: wanted ? worker.skills.filter((s) => s === wanted) : worker.skills,
     };
 
-    const bookings = await Booking.find(filter)
+    const raw = await Booking.find(filter)
       .limit(POOL_LIMIT)
+      .select("-location.address")
       .populate("customer", "full_name")
       .lean();
+
+    const bookings = raw.map((b) => ({
+      ...b,
+      location: {
+        ...b.location,
+        coordinates: b.location.coordinates.map(
+          (c) => Math.round(c * 100) / 100,
+        ),
+      },
+    }));
 
     sendResponse(res, {
       message: "Available bookings fetched",
@@ -191,7 +208,9 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
   if (!worker.isAvailable) {
     throw new AppError("You are currently marked as unavailable", 403);
   }
-
+  if (!worker.isVerified) {
+    throw new AppError("Your acc is pending verification", 403);
+  }
   const booking = await Booking.findOneAndUpdate(
     {
       _id: id,
@@ -386,8 +405,8 @@ export const getAllBookings = catchAsync(
         .skip(skip)
         .limit(limit)
         .populate([
-          { path: "customer", select: "full_name +phone"},
-          { path: "worker", select: "full_name +phone"},
+          { path: "customer", select: "full_name +phone" },
+          { path: "worker", select: "full_name +phone" },
         ])
         .lean(),
       Booking.countDocuments(filter),
@@ -434,4 +453,4 @@ export const getBookingById = catchAsync(
       statusCode: 200,
     });
   },
-); 
+);
