@@ -10,7 +10,7 @@ import { notFoundMiddleware } from "./middlewares/notFound.middleware";
 import ENV_CONFIG from "./config/env.config";
 import bookingRoutes from "./routes/booking.routes";
 import serviceRoutes from "./routes/service.routes";
-
+import workerRoutes from "./routes/worker.routes";
 
 const app = express();
 
@@ -37,6 +37,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/services", serviceRoutes);
+app.use("/api/workers", workerRoutes);
+
 
 //! path not found error middleware
 app.use(notFoundMiddleware);

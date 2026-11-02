@@ -32,6 +32,7 @@ export const errorHandler = (
     : Array.isArray(req.files)
       ? req.files
       : Object.values(req.files).flat();
+      
   const leftoverFiles = [req.file, ...uploaded].filter(Boolean) as Express.Multer.File[];
   for (const file of leftoverFiles) {
     if (file.path && fs.existsSync(file.path)) {
