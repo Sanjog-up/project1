@@ -2,22 +2,19 @@ import cloudinary from "../config/cloudinary.config";
 import fs from "fs";
 
 export const sendFileToCloudinary = async(file: Express.Multer.File,
-    folder = "/"
+    folder = "/",
+    opts: { private?: boolean } = {}, 
 ) => {
     try {
-        const upload_folder = "team_12" + folder;
-        const {public_id, secure_url} = await cloudinary.uploader.upload(file.path,{
-            
-                folder: upload_folder,
-                transformation: [{
-                    width: 800,
-                    crop: "scale",
-                    fetch_format: "auto",
-                    quality: "auto",
-                },
-            ],
-            },
-        );
+        // const upload_folder = "team_12" + folder;
+        const uploadOptions: Record<string, unknown> = { folder: "team_12" + folder};
+        if(opts.private){
+            uploadOptions.type = "authenticated";
+        }
+        else {
+            uploadOptions.transformation = [{ width: 800, crop: "limit"}];
+        }
+        const {public_id, secure_url} = await cloudinary.uploader.upload(file.path, uploadOptions);
 
         //! delete image from server uploads folder
         if(fs.existsSync(file.path)){
