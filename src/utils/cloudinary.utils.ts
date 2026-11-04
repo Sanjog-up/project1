@@ -12,7 +12,12 @@ export const sendFileToCloudinary = async(file: Express.Multer.File,
             uploadOptions.type = "authenticated";
         }
         else {
-            uploadOptions.transformation = [{ width: 800, crop: "limit"}];
+            uploadOptions.transformation = [{ 
+                width: 800, 
+                crop: "limit",
+                fetch_format: "auto",
+                quality: "auto"
+            }];
         }
         const {public_id, secure_url} = await cloudinary.uploader.upload(file.path, uploadOptions);
 

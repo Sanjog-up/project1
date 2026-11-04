@@ -4,7 +4,7 @@ import User from "./user.models";
 
 const documentScheme = new mongoose.Schema(
   {
-    path: { type: String, required: true },
+    path: { type: String },
     public_id: { type: String, required: true },
   },
   {
@@ -57,12 +57,15 @@ const workerSchema = new mongoose.Schema(
     citizenship: {
       type: [documentScheme],
       required: [true, "citizenship documents are required"],
+      select: false
     },
     license: {
       type: documentScheme,
+      select: false
     },
     nid: {
       type: documentScheme,
+      select: false
     },
     location: {
       type: { type: String, enum: ["Point"], default: "Point" },

@@ -290,17 +290,22 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     citizenshipDoc = await sendFileToCloudinary(
       citizenshipFile,
       "/worker_documents/citizenship",
+      { private: true}
     );
 
     if (licenseFile) {
       licenseDoc = await sendFileToCloudinary(
         licenseFile,
         "/worker_documents/license",
+      { private: true}
       );
     }
 
     if (nidFile) {
-      nidDoc = await sendFileToCloudinary(nidFile, "/worker_documents/nid");
+      nidDoc = await sendFileToCloudinary(
+        nidFile, 
+        "/worker_documents/nid",
+      { private: true});
     }
 
     const workerProfile = await WorkerProfile.create({
