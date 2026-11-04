@@ -6,6 +6,7 @@ const documentScheme = new mongoose.Schema(
   {
     path: { type: String },
     public_id: { type: String, required: true },
+    format: { type: String}
   },
   {
     _id: false,
@@ -54,9 +55,14 @@ const workerSchema = new mongoose.Schema(
     isAvailable: { type: Boolean, default: true },
     rating: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0, min: 0 },
-    citizenship: {
-      type: [documentScheme],
-      required: [true, "citizenship documents are required"],
+    citizenshipFront: {
+      type: documentScheme,
+      required: [true, "citizenship front are required"],
+      select: false
+    },
+    citizenshipBack: {
+      type: documentScheme,
+      required: [true, "citizenship back are required"],
       select: false
     },
     license: {

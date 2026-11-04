@@ -19,7 +19,7 @@ export const sendFileToCloudinary = async(file: Express.Multer.File,
                 quality: "auto"
             }];
         }
-        const {public_id, secure_url} = await cloudinary.uploader.upload(file.path, uploadOptions);
+        const {public_id, secure_url, format} = await cloudinary.uploader.upload(file.path, uploadOptions);
 
         //! delete image from server uploads folder
         if(fs.existsSync(file.path)){
@@ -28,6 +28,7 @@ export const sendFileToCloudinary = async(file: Express.Multer.File,
         return {
             public_id,
             path: secure_url,
+            format
         }
     
     } catch (error) {
@@ -37,9 +38,11 @@ export const sendFileToCloudinary = async(file: Express.Multer.File,
 };
 
 //! delete file from clodinary
-export const deleteFileFromCloudinary = async (public_id: string)=>{
+export const deleteFileFromCloudinary = async (public_id: string,
+    type: "upload" | "authenticated" = "upload"
+)=>{
     try {
-        await cloudinary.uploader.destroy(public_id);
+        await cloudinary.uploader.destroy(public_id, {type});
         return true;
     } catch (error) {
         console.log(error);
