@@ -318,7 +318,8 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
       bio,
       hourlyRate: hourlyRate || 150,
       serviceRadiusKm: serviceRadiusKm || 10,
-      citizenship: [citizenshipDoc],
+      citizenshipFront: frontDoc,
+      citizenshipBack: backDoc,
       ...(licenseDoc && { license: licenseDoc }),
       ...(nidDoc && { nid: nidDoc }),
       location: {
@@ -338,14 +339,14 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
 
     sendResponse(res, {
       message: "Successfully registered as worker",
-      data: { workerProfile, access_token },
+      data: { workerId: workerProfile._id, isVerified: workerProfile.isVerified, access_token },
       statusCode: 201,
     });
   } catch (err) {
     //* rollback
     await Promise.allSettled([
       User.findByIdAndUpdate(userId, { role: Role.USER }),
-      ...[citizenshipDoc, licenseDoc, nidDoc]
+      ...[frontDoc, backDoc, licenseDoc, nidDoc]
         .filter(Boolean)
         .map((d) => deleteFileFromCloudinary(d!.public_id)),
     ]);
