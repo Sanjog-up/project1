@@ -254,13 +254,14 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     );
   }
 
-  const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-  const citizenshipFile = files?.citizenship?.[0];
+  const files = (req.file ?? {}) as Record<string, Express.Multer.File[]>;
+  const frontFile = files?.citizenship_front?.[0];
+  const backFile = files?.citizenship_back?.[0];
   const licenseFile = files?.license?.[0];
   const nidFile = files?.nid?.[0];
 
-  if (!citizenshipFile) {
-    throw new AppError("citizenship document is required", 400);
+  if (!frontFile || backFile) {
+    throw new AppError("both front & back of citizenship is required", 400);
   }
 
   const licenseRequiredSkills = ["electrician", "plumber", "driver"];
@@ -283,29 +284,31 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     throw new AppError("Only normal users can be registered as worker", 409);
   }
 
-  let citizenshipDoc;
-  let licenseDoc;
-  let nidDoc;
+  let frontDoc, backDoc, licenseDoc, nidDoc;
   try {
-    citizenshipDoc = await sendFileToCloudinary(
-      citizenshipFile,
+    frontDoc = await sendFileToCloudinary(
+      frontFile,
       "/worker_documents/citizenship",
-      { private: true}
+      { private: true },
+    );
+    backDoc = await sendFileToCloudinary(
+      backFile,
+      "worker_documents/citizenship",
+      { private: true },
     );
 
     if (licenseFile) {
       licenseDoc = await sendFileToCloudinary(
         licenseFile,
         "/worker_documents/license",
-      { private: true}
+        { private: true },
       );
     }
 
     if (nidFile) {
-      nidDoc = await sendFileToCloudinary(
-        nidFile, 
-        "/worker_documents/nid",
-      { private: true});
+      nidDoc = await sendFileToCloudinary(nidFile, "/worker_documents/nid", {
+        private: true,
+      });
     }
 
     const workerProfile = await WorkerProfile.create({
@@ -341,9 +344,11 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
   } catch (err) {
     //* rollback
     await Promise.allSettled([
-      User.findByIdAndUpdate(userId, { role: Role.USER}),
-      ...[citizenshipDoc, licenseDoc, nidDoc].filter(Boolean).map((d) => deleteFileFromCloudinary(d!.public_id))
-    ])
+      User.findByIdAndUpdate(userId, { role: Role.USER }),
+      ...[citizenshipDoc, licenseDoc, nidDoc]
+        .filter(Boolean)
+        .map((d) => deleteFileFromCloudinary(d!.public_id)),
+    ]);
     throw err;
   }
 });
