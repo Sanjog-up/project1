@@ -254,13 +254,13 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     );
   }
 
-  const files = (req.file ?? {}) as Record<string, Express.Multer.File[]>;
+  const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
   const frontFile = files?.citizenship_front?.[0];
   const backFile = files?.citizenship_back?.[0];
   const licenseFile = files?.license?.[0];
   const nidFile = files?.nid?.[0];
 
-  if (!frontFile || backFile) {
+  if (!frontFile || !backFile) {
     throw new AppError("both front & back of citizenship is required", 400);
   }
 
@@ -293,7 +293,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     );
     backDoc = await sendFileToCloudinary(
       backFile,
-      "worker_documents/citizenship",
+      "/worker_documents/citizenship",
       { private: true },
     );
 
@@ -348,7 +348,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
       User.findByIdAndUpdate(userId, { role: Role.USER }),
       ...[frontDoc, backDoc, licenseDoc, nidDoc]
         .filter(Boolean)
-        .map((d) => deleteFileFromCloudinary(d!.public_id)),
+        .map((d) => deleteFileFromCloudinary(d!.public_id, "authenticated")),
     ]);
     throw err;
   }

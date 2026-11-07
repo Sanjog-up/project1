@@ -4,7 +4,7 @@ import { Only_Admins, Role } from "../types/enum.types";
 import { getWorkerDocuments, listPendingWorkers, setAvailability, verifyWorker } from "../controllers/worker.controller";
 
 const router = express.Router();
-router.patch("/avalability", authenticate([Role.WORKER]), setAvailability);
+router.patch("/availability", authenticate([Role.WORKER]), setAvailability);
 
 router.get("/pending", authenticate(Only_Admins), listPendingWorkers);
 

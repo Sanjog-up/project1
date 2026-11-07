@@ -15,6 +15,7 @@ const upload = multerUploader({ allowPdf: false, maxSizeMB: 5 });
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
+  skip: () => process.env.NODE_ENV === "test",
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: {

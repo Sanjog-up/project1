@@ -6,7 +6,6 @@ import { WorkerProfile } from "../models/worker.model";
 import { sendResponse } from "../utils/sendResponse.utils";
 import mongoose from "mongoose";
 import cloudinary from "../config/cloudinary.config";
-import { worker } from "node:cluster";
 
 export const setAvailability = catchAsync(
   async (req: Request, res: Response) => {
@@ -56,9 +55,9 @@ export const getWorkerDocuments = catchAsync(
       throw new AppError("Invalid worker id", 400);
     }
     const worker = await WorkerProfile.findById(id)
-      .select("+citizenshipFront + citizenshipBack +license +nid")
+      .select("+citizenshipFront +citizenshipBack +license +nid")
       .lean();
-    if (!worker) throw new AppError("Worker profile not found", 400);
+    if (!worker) throw new AppError("Worker profile not found", 404);
 
     const expires_at = Math.floor(Date.now() / 1000) + 30 * 60;
 
@@ -93,7 +92,7 @@ export const getWorkerDocuments = catchAsync(
 export const listPendingWorkers = catchAsync(
   async (_req: Request, res: Response) => {
     const workers = await WorkerProfile.find({ isVerified: false })
-      .select("skills bio experience createAt")
+      .select("skills bio experience createdAt")
       .populate("user", "full_name email")
       .lean();
     sendResponse(res, {
