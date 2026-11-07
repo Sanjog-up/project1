@@ -6,7 +6,7 @@ import {
   Register,
 } from "../controllers/auth.controller";
 import { authenticate } from "../middlewares/auth.middleware";
-import { multerUploader } from "../middlewares/mutlter.middleware";
+import { multerUploader } from "../middlewares/multer.middleware";
 import rateLimit from "express-rate-limit";
 
 const router = express.Router();

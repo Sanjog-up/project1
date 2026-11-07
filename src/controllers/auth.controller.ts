@@ -8,8 +8,8 @@ import {
 import ENV_CONFIG from "../config/env.config";
 import { sendResponse } from "../utils/sendResponse.utils";
 import { catchAsync } from "../utils/catchAsync.utils";
-import { comparePassword, hashPassword } from "../utils/bcrypt.utilis";
-import { generateJwtToken } from "../utils/jwt.utilis";
+import { comparePassword, hashPassword } from "../utils/bcrypt.utils";
+import { generateJwtToken } from "../utils/jwt.utils";
 import { WorkerProfile } from "../models/worker.model";
 import { Role } from "../types/enum.types";
 import { Service } from "../models/services.model";
