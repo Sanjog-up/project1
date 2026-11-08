@@ -88,3 +88,23 @@ export const createRating = catchAsync(async (req: Request, res: Response) => {
     statusCode: 201,
   });
 });
+
+
+export const getRatingsForUser = catchAsync(async(req: Request, res: Response) => {
+    const { userId } = req.params;
+    if(!mongoose.isValidObjectId(userId)){
+        throw new AppError("invalid userId", 400)
+    }
+
+    const ratings = await Rating.find({ to: userId})
+    .sort({ createdAt: -1})
+    .limit(50)
+    .populate("from", "full_name")
+    .lean();
+
+    sendResponse(res, {
+        message: "Ratings fetched",
+        data: ratings,
+        statusCode: 200
+    })
+})
