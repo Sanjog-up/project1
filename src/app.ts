@@ -11,13 +11,27 @@ import ENV_CONFIG from "./config/env.config";
 import bookingRoutes from "./routes/booking.routes";
 import serviceRoutes from "./routes/service.routes";
 import workerRoutes from "./routes/worker.routes";
+import ratingRoutes from "./routes/rating.routes";
+import rateLimit from "express-rate-limit";
 
 const app = express();
-
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  skip: () => process.env.NODE_ENV === "test",
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    status: "fail",
+    success: false,
+    message: "toomany attempts, plkease try again",
+  },
+});
 if (ENV_CONFIG.node_env === "production") app.set("trust proxy", 1); // trust first proxy
 
 app.use(helmet());
 app.use(cookieParser());
+app.use(generalLimiter);
 
 app.use(express.json({ limit: "1mb" }));
 app.use((req, _res, next) => {
@@ -45,6 +59,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/workers", workerRoutes);
+app.use("/api/ratings", ratingRoutes);
 
 //! path not found error middleware
 app.use(notFoundMiddleware);
