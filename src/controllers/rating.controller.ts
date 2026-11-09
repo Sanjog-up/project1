@@ -12,11 +12,11 @@ export const createRating = catchAsync(async (req: Request, res: Response) => {
   const { bookingId, score, comment } = req.body ?? {};
   const me = req.user!._id;
 
-  if (!mongoose.isValidObjectId(bookingId)) {
+  if (typeof bookingId !== "string" || !mongoose.isValidObjectId(bookingId)) {
     throw new AppError("Invalid booking id", 400);
   }
   if (!Number.isInteger(score) || score < 1 || score > 5) {
-    throw new AppError("score must be as integer bet 1 and 5", 400);
+    throw new AppError("score must be an integer between 1 and 5", 400);
   }
   if (
     comment !== undefined &&
