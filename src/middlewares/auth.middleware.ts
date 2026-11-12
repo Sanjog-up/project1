@@ -4,6 +4,8 @@ import AppError from "../utils/appError.utils";
 import ENV_CONFIG from "../config/env.config";
 import { Role } from "../types/enum.types";
 import mongoose from "mongoose";
+import { verifyToken } from "../utils/jwt.utils";
+import User from "../models/user.models";
 
 export type TAuthedUser = {
   _id: mongoose.Types.ObjectId;
@@ -12,12 +14,12 @@ export type TAuthedUser = {
   role: Role;
 };
 
-export type TPayload = {
-  _id: mongoose.Types.ObjectId;
-  full_name?: string;
-  email: string;
-  role: Role;
-};
+// export type TPayload = {
+//   _id: mongoose.Types.ObjectId;
+//   full_name?: string;
+//   email: string;
+//   role: Role;
+// };
 
 declare global {
   namespace Express {
@@ -27,61 +29,73 @@ declare global {
   }
 }
 
-const signInWithToken = (token: string) => {
-  try {
-    const decoded = jwt.verify(token, ENV_CONFIG.jwt_secret as string) as any;
+// const signInWithToken = (token: string) => {
+//   try {
+//     const decoded = jwt.verify(token, ENV_CONFIG.jwt_secret as string) as any;
 
-    // decoded may include exp.
-    if (decoded?.exp && Date.now() >= decoded.exp * 1000) {
-      throw new AppError("Token expired", 401);
-    }
+//     // decoded may include exp.
+//     if (decoded?.exp && Date.now() >= decoded.exp * 1000) {
+//       throw new AppError("Token expired", 401);
+//     }
 
-    const payload: TPayload = {
-      _id: decoded?._id,
-      email: decoded?.email,
-      full_name: decoded?.full_name,
-      role: decoded?.role,
-    };
+//     const payload: TPayload = {
+//       _id: decoded?._id,
+//       email: decoded?.email,
+//       full_name: decoded?.full_name,
+//       role: decoded?.role,
+//     };
 
-    if (!payload?._id || !payload?.email || !payload?.role) {
-      throw new AppError("Invalid token payload", 401);
-    }
+//     if (!payload?._id || !payload?.email || !payload?.role) {
+//       throw new AppError("Invalid token payload", 401);
+//     }
 
-    return payload;
-  } catch (err: any) {
-    throw new AppError(err?.message || "Not authorized", 401);
-  }
-};
+//     return payload;
+//   } catch (err: any) {
+//     throw new AppError(err?.message || "Not authorized", 401);
+//   }
+// };
 
-export const authenticate = (roles?: Role[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+export const authenticate = (roles?: Role[]) => 
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const cookieToken = req.cookies?.access_token;
-      const authHeader = req.headers.authorization;
-      const bearerToken = authHeader?.startsWith("Bearer ")
-        ? authHeader.split(" ")[1]
-        : undefined;
+      const header = req.headers.authorization;
+      if(!header?.startsWith("Bearer ")) throw new AppError("Not logged in", 401);
 
-      const token = bearerToken || cookieToken;
-      if (!token) {
-        throw new AppError("Not logged in", 401);
+      // const bearerToken = authHeader?.startsWith("Bearer ")
+      //   ? authHeader.split(" ")[1]
+      //   : undefined;
+
+      // const token = bearerToken || cookieToken;
+      // if (!token) {
+      //   throw new AppError("Not logged in", 401);
+      // }
+      // if(!bearerToken && ["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+      //   const origin = req.headers.origin;
+      //   const allowed = ENV_CONFIG.allow_origin.split(",").map((s) => s.trim());
+      //   if( origin && !allowed.includes(origin)) {
+      //     throw new AppError("Origin not allowed", 403);
+      //   }
+      // }
+
+      // const payload = signInWithToken(token);
+      let payload
+      try {
+        payload = verifyToken(header.split(" ")[1]);
+      } catch  {
+        throw new AppError("Invalid or expired token", 401)
       }
-      if(!bearerToken && ["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
-        const origin = req.headers.origin;
-        const allowed = ENV_CONFIG.allow_origin.split(",").map((s) => s.trim());
-        if( origin && !allowed.includes(origin)) {
-          throw new AppError("Origin not allowed", 403);
-        }
+      const user = await User.findById(payload._id).select("email full_name role").lean();
+      if(!user) throw new AppError("User no longer exists", 401);
+      if(roles?.length && !roles.includes(user.role as Role)){
+        throw new AppError("Forbidden", 403);
       }
 
-      const payload = signInWithToken(token);
-
-      // role guard
-      if (roles?.length) {
-        if (!roles.includes(payload.role)) {
-          throw new AppError("Forbidden", 403);
-        }
-      }
+      // // role guard
+      // if (roles?.length) {
+      //   if (!roles.includes(payload.role)) {
+      //     throw new AppError("Forbidden", 403);
+      //   }
+      // }
 
       req.user = {
         _id: payload._id,
@@ -89,10 +103,8 @@ export const authenticate = (roles?: Role[]) => {
         full_name: payload.full_name,
         role: payload.role,
       };
-
       next();
-    } catch (error: any) {
+    } catch (error) {
       next(error);
     }
-  };
 };

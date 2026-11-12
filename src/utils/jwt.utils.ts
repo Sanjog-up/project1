@@ -1,29 +1,21 @@
 import jwt from "jsonwebtoken";
-import { Role } from "../types/enum.types";
 import mongoose from "mongoose";
 import ENV_CONFIG from "../config/env.config";
 
-export type TPayload = {
-  _id: mongoose.Types.ObjectId;
-  full_name?: string;
-  role: Role;
-  email: string;
-};
-
-export type TJwtReturn = { iat: number; exp: number } & TPayload;
-
 //! generate access token
-export const generateJwtToken = (payload: TPayload) => {
-  const access_token = jwt.sign(payload, ENV_CONFIG.jwt_secret, {
+export const generateJwtToken = (userId: string | mongoose.Types.ObjectId) => 
+  jwt.sign({ _id: String(userId)}, ENV_CONFIG.jwt_secret, {
     algorithm: "HS256",
     expiresIn: ENV_CONFIG.jwt_expiry as any,
   });
-  return access_token;
-};
 
 //! verify token
-export const verifyToken = (token: string): TJwtReturn => {
-    return jwt.verify(token, ENV_CONFIG.jwt_secret, {
+export const verifyToken = (token: string)=> {
+    jwt.verify(token, ENV_CONFIG.jwt_secret, {
         algorithms: ["HS256"],
-    }) as TJwtReturn;
+    }) as {
+        _id: string;
+        iat: number;
+        exp: number;
+    }
 };
