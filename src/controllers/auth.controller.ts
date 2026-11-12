@@ -15,27 +15,6 @@ import { Role } from "../types/enum.types";
 import { Service } from "../models/services.model";
 import { parseJsonField } from "../utils/parseJsonField.utils";
 
-const cookieOptions = () => {
-  const dev = ENV_CONFIG.node_env === "development";
-  return {
-    httpOnly: !dev,
-    secure: !dev,
-    sameSite: (dev ? "lax" : "none") as "lax" | "none",
-    path: "/",
-    maxAge:
-      parseInt(ENV_CONFIG.cookie_express || "7", 10) * 24 * 60 * 60 * 1000,
-  };
-};
-
-const setAuthCookie = (res: Response, token: string) =>
-  res.cookie("access_token", token, {
-    ...cookieOptions(),
-    maxAge: parseInt(ENV_CONFIG.cookie_express ?? "7") * 24 * 60 * 60 * 1000,
-  });
-
-const clearAuthCookie = (res: Response) =>
-  res.clearCookie("access_token", cookieOptions());
-
 const folder = "/profile_image";
 export const Register = catchAsync(async (req: Request, res: Response) => {
   const { full_name, email, password, phone } = req.body ?? {};
@@ -99,13 +78,7 @@ export const Register = catchAsync(async (req: Request, res: Response) => {
     throw err;
   }
 
-  const access_token = generateJwtToken({
-    _id: user._id,
-    role: user.role,
-    email: user.email,
-    full_name: user.full_name,
-  });
-  setAuthCookie(res, access_token);
+  const access_token = generateJwtToken(user._id);
 
   sendResponse(res, {
     message: "Account created",
@@ -138,17 +111,7 @@ export const login = catchAsync(async (req: Request, res: Response) => {
     throw new AppError("email or password does not match", 401);
   }
 
-  const payload = {
-    _id: user._id,
-    full_name: user.full_name,
-    email: user.email,
-    role: user.role,
-  };
-
-  const access_token = generateJwtToken(payload);
-
-  //* send access_token in cookie
-  setAuthCookie(res, access_token);
+  const access_token = generateJwtToken(user._id);
   //* success response
   sendResponse(res, {
     message: "Login successful",
@@ -159,7 +122,6 @@ export const login = catchAsync(async (req: Request, res: Response) => {
 
 //! logout
 export const logout = catchAsync(async (req: Request, res: Response) => {
-  clearAuthCookie(res);
   sendResponse(res, {
     message: "Logged out successfully",
     statusCode: 200,
@@ -329,13 +291,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     });
 
     //* generate new access_token with updated role and set cookie
-    const access_token = generateJwtToken({
-      _id: promoted._id,
-      full_name: promoted.full_name,
-      email: promoted.email,
-      role: promoted.role,
-    });
-    setAuthCookie(res, access_token);
+    const access_token = generateJwtToken(userId);
 
     sendResponse(res, {
       message: "Successfully registered as worker",

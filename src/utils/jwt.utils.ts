@@ -11,7 +11,7 @@ export const generateJwtToken = (userId: string | mongoose.Types.ObjectId) =>
 
 //! verify token
 export const verifyToken = (token: string)=> {
-    jwt.verify(token, ENV_CONFIG.jwt_secret, {
+    return jwt.verify(token, ENV_CONFIG.jwt_secret, {
         algorithms: ["HS256"],
     }) as {
         _id: string;
