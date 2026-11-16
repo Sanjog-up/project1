@@ -27,8 +27,15 @@ const generalLimiter = rateLimit({
     message: "toomany attempts, plkease try again",
   },
 });
+
 if (ENV_CONFIG.node_env === "production") app.set("trust proxy", 1); // trust first proxy
 
+app.use(
+  cors({
+    origin: ENV_CONFIG.allow_origin.split(",").map((origin) => origin.trim()),
+    credentials: true,
+  }),
+);
 app.use(helmet());
 app.use(cookieParser());
 app.use(generalLimiter);
@@ -38,12 +45,6 @@ app.use((req, _res, next) => {
   req.body ??= {};
   next();
 });
-app.use(
-  cors({
-    origin: ENV_CONFIG.allow_origin.split(",").map((origin) => origin.trim()),
-    credentials: true,
-  }),
-);
 
 app.get("/", (req: Request, res: Response) => {
   res.status(200).json({

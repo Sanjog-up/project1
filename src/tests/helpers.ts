@@ -86,7 +86,7 @@ export async function makeVerifiedWorker(adminToken: string) {
   const verify = await api()
     .patch(`/api/workers/${workerId}/verify`)
     .set(auth(adminToken));
-  expect(res.status, JSON.stringify(res.body)).toBe(201);
+  expect(verify.status, JSON.stringify(verify.body)).toBe(200);
   return {
     token: res.body.data.access_token as string,
     userId: user.id,

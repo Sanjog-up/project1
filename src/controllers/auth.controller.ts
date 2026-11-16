@@ -309,7 +309,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
   } catch (err) {
     //* rollback
     await Promise.allSettled([
-      User.findByIdAndUpdate(userId, { role: Role.USER }),
+      workerProfile && workerProfile.deleteOne({ _id: workerProfile._id }),
       ...[frontDoc, backDoc, licenseDoc, nidDoc]
         .filter(Boolean)
         .map((d) => deleteFileFromCloudinary(d!.public_id, "authenticated")),

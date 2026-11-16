@@ -97,7 +97,7 @@ workerSchema.pre("save", async function () {
     if (!linkedUser) {
       throw new Error("Linked user not found");
     }
-    if (linkedUser.role !== Role.WORKER) {
+    if (linkedUser.role !== Role.USER && linkedUser.role !== Role.WORKER) {
       throw new Error("Linked user must have a worker role");
     }
   }
