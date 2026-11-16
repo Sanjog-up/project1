@@ -237,16 +237,8 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     );
   }
 
-  const promoted = await User.findOneAndUpdate(
-    { _id: userId, role: Role.USER },
-    { role: Role.WORKER },
-    { returnDocument: "after" },
-  );
-  if (!promoted) {
-    throw new AppError("Only normal users can be registered as worker", 409);
-  }
-
   let frontDoc, backDoc, licenseDoc, nidDoc;
+  let workerProfile;
   try {
     frontDoc = await sendFileToCloudinary(
       frontFile,
@@ -273,7 +265,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
       });
     }
 
-    const workerProfile = await WorkerProfile.create({
+    workerProfile = await WorkerProfile.create({
       user: userId,
       skills: cleanedSkills,
       experience: experience || 0,
@@ -290,12 +282,28 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
       },
     });
 
-    //* generate new access_token with updated role and set cookie
+    //* promote user to worker role
+    const promoted = await User.findByIdAndUpdate(
+      { _id: userId, role: Role.USER },
+      { role: Role.WORKER },
+      { new: true },
+    );
+    if (!promoted) {
+      throw new AppError(
+        "Only normal users can be promoted to worker role",
+        409,
+      );
+    }
+
     const access_token = generateJwtToken(userId);
 
     sendResponse(res, {
       message: "Successfully registered as worker",
-      data: { workerId: workerProfile._id, isVerified: workerProfile.isVerified, access_token },
+      data: {
+        workerId: workerProfile._id,
+        isVerified: workerProfile.isVerified,
+        access_token,
+      },
       statusCode: 201,
     });
   } catch (err) {
