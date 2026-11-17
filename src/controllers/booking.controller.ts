@@ -343,9 +343,10 @@ export const releaseBooking = catchAsync(
         409,
       );
     }
-    const expiresAt =
-      currentBooking.scheduledAt ??
-      new Date(Date.now() + booking_exp_time * 60 * 1000); // 15 minutes from now
+    const booked = currentBooking.scheduledAt && currentBooking.expiresAt > new Date();
+    const expiresAt = booked
+      ? currentBooking.scheduledAt
+      : new Date(Date.now() + booking_exp_time * 60 * 1000); // 15 minutes from now
 
     const booking = await Booking.findOneAndUpdate(
       filter,
@@ -380,7 +381,7 @@ export const cancelBooking = catchAsync(async (req: Request, res: Response) => {
     {
       _id: id,
       customer: req.user!._id,
-      status: { $in: [BookingStatus.Requested, BookingStatus.Accepted] },
+      status: { $in: [BookingStatus.Requested, BookingStatus.Accepted, BookingStatus.EnRoute] },
     },
     {
       $set: {
