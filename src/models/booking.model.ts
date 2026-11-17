@@ -27,6 +27,8 @@ export interface IBooking extends Document {
   cancelledBy?: "User" | "Worker";
   cancellationReason?: string;
   paymentStatus: "Pending" | "Paid" | "Refunded";
+  paymentMethod?: "Cash";
+  paidAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   expiresAt: Date;
@@ -52,7 +54,7 @@ const bookingSchema = new Schema<IBooking>(
       default: BookingStatus.Requested,
     },
     location: {
-      type: { type: String, enum: ["Point"], default: "Point" }, 
+      type: { type: String, enum: ["Point"], default: "Point" },
       coordinates: {
         type: [Number],
         required: true,
@@ -70,14 +72,23 @@ const bookingSchema = new Schema<IBooking>(
       enum: ["User", "Worker"],
     },
     cancelledAt: { type: Date },
-    cancellationReason: { type: String, trim: true, maxlength: [300, "Cancellation reason cannot exceed 300 characters"] },
+    cancellationReason: {
+      type: String,
+      trim: true,
+      maxlength: [300, "Cancellation reason cannot exceed 300 characters"],
+    },
     price: { type: Number, min: [0, "Price cannot be negative"] },
     paymentStatus: {
       type: String,
       enum: ["Pending", "Paid", "Refunded"],
       default: "Pending",
     },
-    expiresAt: { type: Date , required: true},
+    paymentMethod: {
+      type: String,
+      enum: ["Cash"],
+    },
+    paidAt: { type: Date },
+    expiresAt: { type: Date, required: true },
   },
   { timestamps: true },
 );

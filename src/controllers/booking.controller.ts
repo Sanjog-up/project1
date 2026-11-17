@@ -301,6 +301,32 @@ export const completeBooking = catchAsync(
   },
 );
 
+//! COD payment confirmation by worker
+export const markPaid = catchAsync(async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  const booking = await Booking.findOneAndUpdate(
+    {
+      _id: id,
+      worker: req.user!._id,
+      status: BookingStatus.Completed,
+      paymentStatus: "Pending",
+    },
+    { $set: { paymentStatus: "Paid", paidAt: new Date() } },
+    { returnDocument: "after" },
+  );
+  if (!booking) {
+    throw new AppError(
+      "Booking not found or it is not in Completed status with Pending payment",
+      409,
+    );
+  }
+  sendResponse(res, {
+    message: "Payment marked as received successfully",
+    data: booking,
+    statusCode: 200,
+  });
+}); 
+
 //! booking release
 export const releaseBooking = catchAsync(
   async (req: Request, res: Response) => {

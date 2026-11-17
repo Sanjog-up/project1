@@ -321,7 +321,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
 export const me = catchAsync(async (req: Request, res: Response) => {
   const user = await User.findById(req.user!._id);
   if(!user) throw new AppError("User doesnt exist", 401);
-  const workerProfile = user.role === Role.WORKER ? await WorkerProfile.findOne({ user: user._id }) : null;
+  const workerProfile = user.role === Role.WORKER ? await WorkerProfile.findOne({ user: user._id }).lean() : null;
   sendResponse(res, {
     message: "Current user profile",
     data: { user, workerProfile },
