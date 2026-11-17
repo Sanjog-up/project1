@@ -1,5 +1,5 @@
 import express from "express";
-import { createBooking, acceptBooking, getAllBookings, getAvailableBookings, getBookingById, markEnRoute, startWork, cancelBooking, completeBooking,  releaseBooking } from "../controllers/booking.controller";
+import { createBooking, acceptBooking, getAllBookings, getAvailableBookings, getBookingById, markEnRoute, startWork, cancelBooking, completeBooking,  releaseBooking, markPaid } from "../controllers/booking.controller";
 import { authenticate } from "../middlewares/auth.middleware";
 import { Role } from "../types/enum.types";
 
@@ -31,6 +31,9 @@ router.patch("/:id/cancel", authenticate([Role.USER]), cancelBooking);
 
 //! complete booking
 router.patch("/:id/complete", authenticate([Role.WORKER]), completeBooking);
+
+//! Mark paid
+router.patch("/:id/mark-paid", authenticate([Role.USER]), markPaid);
 
 //! release booking
 router.patch("/:id/release", authenticate([Role.WORKER]), releaseBooking);

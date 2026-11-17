@@ -7,6 +7,7 @@ import { Rating, RatedRole } from "../models/rating.model";
 import { Booking, BookingStatus } from "../models/booking.model";
 import { WorkerProfile } from "../models/worker.model";
 import { Role } from "../types/enum.types";
+import User from "../models/user.models";
 
 export const createRating = catchAsync(async (req: Request, res: Response) => {
   const { bookingId, score, comment } = req.body ?? {};
@@ -56,32 +57,24 @@ export const createRating = catchAsync(async (req: Request, res: Response) => {
     comment: typeof comment === "string" ? comment.trim() : undefined,
   });
 
-  // Update worker profile average when a worker is rated
+  const [stats] = await Rating.aggregate([
+    { $match: { to, ratedRole } },
+    { $group: { _id: null, avgScore: { $avg: "$score" }, count: { $sum: 1 } } },
+  ]);
+  const average = Math.round((stats?.avgScore ?? 0) * 10) / 10;
+  const count = stats?.count ?? 0;
+
   if (ratedRole === RatedRole.WORKER) {
-    const stats = await Rating.aggregate([
-      { $match: { to: to, ratedRole: RatedRole.WORKER } },
-      {
-        $group: {
-          _id: "$to",
-          avg: { $avg: "$score" },
-          count: { $sum: 1 },
-        },
-      },
-    ]);
-
-    if (stats[0]) {
-      await WorkerProfile.findOneAndUpdate(
-        { user: to },
-        {
-          $set: {
-            rating: Math.round(stats[0].avg * 10) / 10,
-            ratingCount: stats[0].count,
-          },
-        },
-      );
-    }
+    await WorkerProfile.findOneAndUpdate(
+      { user: to },
+      { $set: { rating: average, ratingCount: count } },
+    );
+  } else {
+    await User.updateOne(
+      { _id: to },
+      { $set: { rating: average, ratingCount: count } },
+    );
   }
-
   sendResponse(res, {
     message: "Rating submitted",
     data: rating,
@@ -89,22 +82,23 @@ export const createRating = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-
-export const getRatingsForUser = catchAsync(async(req: Request, res: Response) => {
+export const getRatingsForUser = catchAsync(
+  async (req: Request, res: Response) => {
     const { userId } = req.params;
-    if(!mongoose.isValidObjectId(userId)){
-        throw new AppError("invalid userId", 400)
+    if (!mongoose.isValidObjectId(userId)) {
+      throw new AppError("invalid userId", 400);
     }
 
-    const ratings = await Rating.find({ to: userId})
-    .sort({ createdAt: -1})
-    .limit(50)
-    .populate("from", "full_name")
-    .lean();
+    const ratings = await Rating.find({ to: userId })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .populate("from", "full_name")
+      .lean();
 
     sendResponse(res, {
-        message: "Ratings fetched",
-        data: ratings,
-        statusCode: 200
-    })
-})
+      message: "Ratings fetched",
+      data: ratings,
+      statusCode: 200,
+    });
+  },
+);
