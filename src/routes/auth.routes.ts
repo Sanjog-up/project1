@@ -3,6 +3,7 @@ import {
   beWorker,
   login,
   logout,
+  me,
   Register,
 } from "../controllers/auth.controller";
 import { authenticate } from "../middlewares/auth.middleware";
@@ -47,5 +48,7 @@ router.post(
   ]),
   beWorker,
 );
+//! Get current user profile
+router.get("/me", authenticate(), me); 
 
 export default router;

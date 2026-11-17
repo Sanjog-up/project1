@@ -98,7 +98,7 @@ workerSchema.pre("save", async function () {
       throw new Error("Linked user not found");
     }
     if (linkedUser.role !== Role.USER && linkedUser.role !== Role.WORKER) {
-      throw new Error("Linked user must have a worker role");
+      throw new Error("Only a normal user can be promoted to worker role");
     }
   }
 });

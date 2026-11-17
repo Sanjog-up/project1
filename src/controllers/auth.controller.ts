@@ -5,7 +5,6 @@ import {
   deleteFileFromCloudinary,
   sendFileToCloudinary,
 } from "../utils/cloudinary.utils";
-import ENV_CONFIG from "../config/env.config";
 import { sendResponse } from "../utils/sendResponse.utils";
 import { catchAsync } from "../utils/catchAsync.utils";
 import { comparePassword, hashPassword } from "../utils/bcrypt.utils";
@@ -154,7 +153,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     body.serviceRadiusKm === undefined ? 10 : Number(body.serviceRadiusKm);
   const bio = body.bio;
   if (typeof bio !== "string" || bio.trim().length < 25) {
-    throw new AppError("bio is required % must be 25 chars long", 400);
+    throw new AppError("bio is required & must be 25 chars long", 400);
   }
   if (
     ![experience, hourlyRate, serviceRadiusKm].every(
@@ -286,7 +285,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     const promoted = await User.findByIdAndUpdate(
       { _id: userId, role: Role.USER },
       { role: Role.WORKER },
-      { new: true },
+      { returnDocument: "after" },
     );
     if (!promoted) {
       throw new AppError(
@@ -316,4 +315,16 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     ]);
     throw err;
   }
+});
+
+
+export const me = catchAsync(async (req: Request, res: Response) => {
+  const user = await User.findById(req.user!._id);
+  if(!user) throw new AppError("User doesnt exist", 401);
+  const workerProfile = user.role === Role.WORKER ? await WorkerProfile.findOne({ user: user._id }) : null;
+  sendResponse(res, {
+    message: "Current user profile",
+    data: { user, workerProfile },
+    statusCode: 200,
+  });
 });
