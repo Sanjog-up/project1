@@ -80,12 +80,32 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     );
   }
 
-  let scheduledDate: Date | undefined;
+  let scheduledDate: Date | undefined ;
   if (scheduledAt) {
     scheduledDate = new Date(scheduledAt);
     if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
       throw new AppError("Invalid scheduledAt date", 400);
     }
+    if(isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+    throw new AppError("Invalid scheduledAt date", 400);
+  }
+  const latest = Date.now() + MAX_SCHEDULE_DAYS_AHEAD * 24 * 60 * 60 * 1000;
+  if (scheduledDate.getTime() > latest) {
+    throw new AppError(
+      `scheduledAt date cannot be more than ${MAX_SCHEDULE_DAYS_AHEAD} days in the future`,
+      400,
+    );
+  }
+  const activeBookingsCount = await Booking.countDocuments({
+    customer: req.user!._id,
+    status: { $in: ACTIVE_BOOKING_STATUSES },
+  });
+  if (activeBookingsCount >= MAX_ACTIVE_BOOKINGS_PER_CUSTOMER) {
+    throw new AppError(
+      `You can only have a maximum of ${MAX_ACTIVE_BOOKINGS_PER_CUSTOMER} active bookings at a time`,
+      400,
+    );
+  }
   }
 
   const expiresAt =
