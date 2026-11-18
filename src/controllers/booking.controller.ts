@@ -103,7 +103,7 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   if (activeBookingsCount >= MAX_ACTIVE_BOOKINGS_PER_CUSTOMER) {
     throw new AppError(
       `You can only have a maximum of ${MAX_ACTIVE_BOOKINGS_PER_CUSTOMER} active bookings at a time`,
-      400,
+      429,
     );
   }
   }
@@ -239,6 +239,20 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
   }
   if (!worker.isVerified) {
     throw new AppError("Your acc is pending verification", 403);
+  }
+  const activeJobsCount = await Booking.countDocuments({
+    worker: req.user!._id,
+    status: { $in: [
+      BookingStatus.Accepted,
+      BookingStatus.EnRoute,
+      BookingStatus.InProgress,
+    ] },
+  });
+  if (activeJobsCount >= MAX_ACTIVE_JOBS_PER_WORKER) {
+    throw new AppError(
+      `You can only have a maximum of ${MAX_ACTIVE_JOBS_PER_WORKER} active jobs at a time`,
+      409,
+    );
   }
   const booking = await Booking.findOneAndUpdate(
     {
