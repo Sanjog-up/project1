@@ -17,6 +17,15 @@ const DEFAULT_RADIUS_KM = 5;
 const MAX_RADIUS_KM = 25;
 const POOL_LIMIT = 20;
 const booking_exp_time = 15;
+const MAX_ACTIVE_BOOKINGS_PER_CUSTOMER = 5;
+const MAX_ACTIVE_JOBS_PER_WORKER = 3;
+const MAX_SCHEDULE_DAYS_AHEAD = 30;
+const ACTIVE_BOOKING_STATUSES = [
+  BookingStatus.Requested,
+  BookingStatus.Accepted,
+  BookingStatus.EnRoute,
+  BookingStatus.InProgress,
+];
 
 //! createbooking
 export const createBooking = catchAsync(async (req: Request, res: Response) => {
