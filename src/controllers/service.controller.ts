@@ -5,7 +5,7 @@ import { catchAsync } from "../utils/catchAsync.utils";
 import { sendResponse } from "../utils/sendResponse.utils";
 import AppError from "../utils/appError.utils";
 
-const toSlug = (name:string) => name.trim().toLowerCase().replace(/\s+/g, "-");
+const toSlug = (name:string) => name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 const isValidPrice = (price: number) : price is number => 
     typeof price === "number" && price >= 1 && Number.isFinite(price);

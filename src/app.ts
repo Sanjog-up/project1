@@ -66,4 +66,5 @@ app.use("/api/ratings", ratingRoutes);
 app.use(notFoundMiddleware);
 
 app.use(errorHandler);
+
 export default app;
