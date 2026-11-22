@@ -1,4 +1,4 @@
-import { setAvailability } from './worker.controller';
+import { setAvailability } from "./worker.controller";
 import { Request, Response } from "express";
 import { Booking, BookingStatus } from "../models/booking.model";
 import { catchAsync } from "../utils/catchAsync.utils";
@@ -277,6 +277,7 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
       { _id: worker._id },
       { $inc: { scheduledJobsCount: -1 } },
     );
+    throw error;
   }
   if (!booking) {
     await WorkerProfile.updateOne(
@@ -349,12 +350,10 @@ export const completeBooking = catchAsync(
         409,
       );
     }
-    if(booking.status === BookingStatus.Completed) {
-      await WorkerProfile.updateOne(
-        { user: req.user!._id, scheduledJobsCount: { $gt: 0 } },
-        { $inc: { scheduledJobsCount: -1 } },
-      );
-    };
+    await WorkerProfile.updateOne(
+      { user: req.user!._id, scheduledJobsCount: { $gt: 0 } },
+      { $inc: { scheduledJobsCount: -1 } },
+    );
     sendResponse(res, {
       message: "Booking completed successfully",
       data: booking,
@@ -419,12 +418,17 @@ export const releaseBooking = catchAsync(
       },
       { returnDocument: "after" },
     );
+    await WorkerProfile.updateOne(
+      { user: req.user!._id, scheduledJobsCount: { $gt: 0 } },
+      { $inc: { scheduledJobsCount: -1 } },
+    );
     if (!booking) {
       throw new AppError(
         "Booking not found or it is not in Accepted or EnRoute status",
         409,
       );
     }
+
     sendResponse(res, {
       message: "Booking released successfully",
       data: booking,
@@ -462,20 +466,16 @@ export const cancelBooking = catchAsync(async (req: Request, res: Response) => {
     },
     { returnDocument: "after" },
   );
-  const acceptedBooking = await WorkerProfile.findOne({
-    _id: req.user!._id,
-    status: BookingStatus.Accepted,
-  });
-  if (booking?.worker && acceptedBooking) {
-    await WorkerProfile.updateOne(
-      { user: booking.worker, scheduledJobsCount: { $gt: 0 } },
-      { $inc: { scheduledJobsCount: -1 } },
-    );
-  }
   if (!booking) {
     throw new AppError(
       "Booking not found or it can no longer be cancelled",
       409,
+    );
+  }
+  if(booking.worker) {
+    await WorkerProfile.updateOne(
+      { user: booking.worker, scheduledJobsCount: { $gt: 0 } },
+      { $inc: { scheduledJobsCount: -1 } },
     );
   }
   sendResponse(res, {
