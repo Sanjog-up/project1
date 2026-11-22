@@ -99,4 +99,18 @@ describe("POST /api/auth/login", () => {
         expect(res.status).toBe(400);
         expect(res.body.message).toBe("Invalid credentials");
     });
+
+    it("gives a generic error message for invalid credentials", async () => {
+        const wrongPass = await request(app).post("/api/auth/login").send({
+            email: validUser.email,
+            password: "WrongPassword"
+        });
+        const wrongEmail = await request(app).post("/api/auth/login").send({
+            email: "nonexistent@example.com",
+            password: validUser.password
+        });
+        expect(wrongPass.body.message).toBe("Invalid credentials");
+        expect(wrongEmail.body.message).toBe("Invalid credentials");
+        expect(wrongEmail.body.message).toBe("Invalid credentials");
+    });
 });

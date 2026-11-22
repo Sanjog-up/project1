@@ -18,7 +18,8 @@ const MAX_RADIUS_KM = 25;
 const POOL_LIMIT = 20;
 const booking_exp_time = 15;
 const MAX_ACTIVE_BOOKINGS_PER_CUSTOMER = 5;
-const MAX_ACTIVE_JOBS_PER_WORKER = 3;
+const MAX_ACTIVE_JOBS_PER_WORKER = 1;
+const MAX_SCHEDULED_JOBS_PER_WORKER = 3;
 const MAX_SCHEDULE_DAYS_AHEAD = 30;
 const ACTIVE_BOOKING_STATUSES = [
   BookingStatus.Requested,
@@ -80,21 +81,22 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
     );
   }
 
-  let scheduledDate: Date | undefined ;
+  let scheduledDate: Date | undefined;
   if (scheduledAt) {
     scheduledDate = new Date(scheduledAt);
     if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
       throw new AppError("Invalid scheduledAt date", 400);
     }
-    if(isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
-    throw new AppError("Invalid scheduledAt date", 400);
-  }
-  const latest = Date.now() + MAX_SCHEDULE_DAYS_AHEAD * 24 * 60 * 60 * 1000;
-  if (scheduledDate.getTime() > latest) {
-    throw new AppError(
-      `scheduledAt date cannot be more than ${MAX_SCHEDULE_DAYS_AHEAD} days in the future`,
-      400,
-    );
+    if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+      throw new AppError("Invalid scheduledAt date", 400);
+    }
+    const latest = Date.now() + MAX_SCHEDULE_DAYS_AHEAD * 24 * 60 * 60 * 1000;
+    if (scheduledDate.getTime() > latest) {
+      throw new AppError(
+        `scheduledAt date cannot be more than ${MAX_SCHEDULE_DAYS_AHEAD} days in the future`,
+        400,
+      );
+    }
   }
   const activeBookingsCount = await Booking.countDocuments({
     customer: req.user!._id,
@@ -105,7 +107,6 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
       `You can only have a maximum of ${MAX_ACTIVE_BOOKINGS_PER_CUSTOMER} active bookings at a time`,
       429,
     );
-  }
   }
 
   const expiresAt =
@@ -240,36 +241,48 @@ export const acceptBooking = catchAsync(async (req: Request, res: Response) => {
   if (!worker.isVerified) {
     throw new AppError("Your acc is pending verification", 403);
   }
-  const activeJobsCount = await Booking.countDocuments({
-    worker: req.user!._id,
-    status: { $in: [
-      BookingStatus.Accepted,
-      BookingStatus.EnRoute,
-      BookingStatus.InProgress,
-    ] },
-  });
-  if (activeJobsCount >= MAX_ACTIVE_JOBS_PER_WORKER) {
+
+  const reserved = await WorkerProfile.findOneAndUpdate(
+    {
+      _id: worker._id,
+      scheduledJobsCount: { $lt: MAX_ACTIVE_JOBS_PER_WORKER },
+    },
+    { $inc: { scheduledJobsCount: 1 } },
+  );
+  if (!reserved) {
     throw new AppError(
       `You can only have a maximum of ${MAX_ACTIVE_JOBS_PER_WORKER} active jobs at a time`,
       409,
     );
   }
-  const booking = await Booking.findOneAndUpdate(
-    {
-      _id: id,
-      status: BookingStatus.Requested,
-      expiresAt: { $gt: new Date() },
-      serviceType: { $in: worker.skills },
-    },
-    {
-      $set: {
-        status: BookingStatus.Accepted,
-        worker: req.user!._id,
+  let booking;
+  try {
+    booking = await Booking.findOneAndUpdate(
+      {
+        _id: id,
+        status: BookingStatus.Requested,
+        expiresAt: { $gt: new Date() },
+        serviceType: { $in: worker.skills },
       },
-    },
-    { returnDocument: "after" },
-  );
+      {
+        $set: {
+          status: BookingStatus.Accepted,
+          worker: req.user!._id,
+        },
+      },
+      { returnDocument: "after" },
+    );
+  } catch (error) {
+    await WorkerProfile.updateOne(
+      { _id: worker._id },
+      { $inc: { scheduledJobsCount: -1 } },
+    );
+  }
   if (!booking) {
+    await WorkerProfile.updateOne(
+      { _id: worker._id },
+      { $inc: { scheduledJobsCount: -1 } },
+    );
     throw new AppError(
       "Booking not found or not in a state to be accepted",
       404,
@@ -368,7 +381,7 @@ export const markPaid = catchAsync(async (req: Request, res: Response) => {
     data: booking,
     statusCode: 200,
   });
-}); 
+});
 
 //! booking release
 export const releaseBooking = catchAsync(
@@ -386,7 +399,8 @@ export const releaseBooking = catchAsync(
         409,
       );
     }
-    const booked = currentBooking.scheduledAt && currentBooking.expiresAt > new Date();
+    const booked =
+      currentBooking.scheduledAt && currentBooking.expiresAt > new Date();
     const expiresAt = booked
       ? currentBooking.scheduledAt
       : new Date(Date.now() + booking_exp_time * 60 * 1000); // 15 minutes from now
@@ -424,7 +438,13 @@ export const cancelBooking = catchAsync(async (req: Request, res: Response) => {
     {
       _id: id,
       customer: req.user!._id,
-      status: { $in: [BookingStatus.Requested, BookingStatus.Accepted, BookingStatus.EnRoute] },
+      status: {
+        $in: [
+          BookingStatus.Requested,
+          BookingStatus.Accepted,
+          BookingStatus.EnRoute,
+        ],
+      },
     },
     {
       $set: {

@@ -33,7 +33,7 @@ router.patch("/:id/cancel", authenticate([Role.USER]), cancelBooking);
 router.patch("/:id/complete", authenticate([Role.WORKER]), completeBooking);
 
 //! Mark paid
-router.patch("/:id/mark-paid", authenticate([Role.USER]), markPaid);
+router.patch("/:id/mark-paid", authenticate([Role.WORKER]), markPaid);
 
 //! release booking
 router.patch("/:id/release", authenticate([Role.WORKER]), releaseBooking);

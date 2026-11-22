@@ -54,6 +54,7 @@ const workerSchema = new mongoose.Schema(
     isVerified: { type: Boolean, default: false },
     isAvailable: { type: Boolean, default: true },
     rating: { type: Number, default: 0, min: 0, max: 5 },
+    scheduledJobsCount: { type: Number, default: 0, min: 0 },
     ratingCount: { type: Number, default: 0, min: 0 },
     citizenshipFront: {
       type: documentScheme,
