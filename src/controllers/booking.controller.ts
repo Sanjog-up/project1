@@ -1,3 +1,4 @@
+import { setAvailability } from './worker.controller';
 import { Request, Response } from "express";
 import { Booking, BookingStatus } from "../models/booking.model";
 import { catchAsync } from "../utils/catchAsync.utils";
@@ -18,8 +19,7 @@ const MAX_RADIUS_KM = 25;
 const POOL_LIMIT = 20;
 const booking_exp_time = 15;
 const MAX_ACTIVE_BOOKINGS_PER_CUSTOMER = 5;
-const MAX_ACTIVE_JOBS_PER_WORKER = 1;
-const MAX_SCHEDULED_JOBS_PER_WORKER = 3;
+const MAX_ACTIVE_JOBS_PER_WORKER = 3;
 const MAX_SCHEDULE_DAYS_AHEAD = 30;
 const ACTIVE_BOOKING_STATUSES = [
   BookingStatus.Requested,
@@ -349,6 +349,12 @@ export const completeBooking = catchAsync(
         409,
       );
     }
+    if(booking.status === BookingStatus.Completed) {
+      await WorkerProfile.updateOne(
+        { user: req.user!._id, scheduledJobsCount: { $gt: 0 } },
+        { $inc: { scheduledJobsCount: -1 } },
+      );
+    };
     sendResponse(res, {
       message: "Booking completed successfully",
       data: booking,
@@ -456,6 +462,16 @@ export const cancelBooking = catchAsync(async (req: Request, res: Response) => {
     },
     { returnDocument: "after" },
   );
+  const acceptedBooking = await WorkerProfile.findOne({
+    _id: req.user!._id,
+    status: BookingStatus.Accepted,
+  });
+  if (booking?.worker && acceptedBooking) {
+    await WorkerProfile.updateOne(
+      { user: booking.worker, scheduledJobsCount: { $gt: 0 } },
+      { $inc: { scheduledJobsCount: -1 } },
+    );
+  }
   if (!booking) {
     throw new AppError(
       "Booking not found or it can no longer be cancelled",
