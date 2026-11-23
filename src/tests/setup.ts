@@ -8,7 +8,6 @@ let mongo: MongoMemoryServer;
 beforeAll(async () => {
   mongo = await MongoMemoryServer.create();
   await mongoose.connect(mongo.getUri());
-  await mongoose.connect(mongo.getUri());
   if (mongoose.connection.port === 27017) {
     throw new Error("Tests must never run against the real MongoDB");
   }
