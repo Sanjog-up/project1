@@ -1,4 +1,3 @@
-import { setAvailability } from "./worker.controller";
 import { Request, Response } from "express";
 import { Booking, BookingStatus } from "../models/booking.model";
 import { catchAsync } from "../utils/catchAsync.utils";
@@ -84,9 +83,6 @@ export const createBooking = catchAsync(async (req: Request, res: Response) => {
   let scheduledDate: Date | undefined;
   if (scheduledAt) {
     scheduledDate = new Date(scheduledAt);
-    if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
-      throw new AppError("Invalid scheduledAt date", 400);
-    }
     if (isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
       throw new AppError("Invalid scheduledAt date", 400);
     }
@@ -418,16 +414,16 @@ export const releaseBooking = catchAsync(
       },
       { returnDocument: "after" },
     );
-    await WorkerProfile.updateOne(
-      { user: req.user!._id, scheduledJobsCount: { $gt: 0 } },
-      { $inc: { scheduledJobsCount: -1 } },
-    );
     if (!booking) {
       throw new AppError(
         "Booking not found or it is not in Accepted or EnRoute status",
         409,
       );
     }
+     await WorkerProfile.updateOne(
+      { user: req.user!._id, scheduledJobsCount: { $gt: 0 } },
+      { $inc: { scheduledJobsCount: -1 } },
+    );
 
     sendResponse(res, {
       message: "Booking released successfully",

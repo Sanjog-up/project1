@@ -1,8 +1,8 @@
 {
   "name": "service-marketplace",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Urban Company-style service marketplace backend (Node, Express, TypeScript, MongoDB)",
+  "main": "dist/server.js",
   "license": "ISC",
   "type": "commonjs",
   "scripts": {

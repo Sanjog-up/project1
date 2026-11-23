@@ -282,7 +282,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     });
 
     //* promote user to worker role
-    const promoted = await User.findByIdAndUpdate(
+    const promoted = await User.findOneAndUpdate(
       { _id: userId, role: Role.USER },
       { role: Role.WORKER },
       { returnDocument: "after" },

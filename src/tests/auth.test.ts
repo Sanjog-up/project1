@@ -44,7 +44,7 @@ describe("POST /api/auth/register", () => {
     });
 
     it.each([
-        ["a tto-short name", { ...validUser, full_name: "ab" }, "full_name is required"],
+        ["a too-short name", { ...validUser, full_name: "ab" }, "full_name is required"],
         ["an invalid email", { ...validUser, email: "invalid-email" }, "email is required"],
         ["a weak password", { ...validUser, password: "123" }, "password is required"],
     ])("returns 400 for %s", async (_label, body) => {
@@ -53,7 +53,7 @@ describe("POST /api/auth/register", () => {
         expect(await User.countDocuments()).toBe(0);
     });
 
-    it("returns 409 if email already exists", async () => {
+    it("returns 400 if email already exists", async () => {
         await register(validUser);
         const res = await register({...validUser, email: validUser.email.toUpperCase()});
         expect(res.status).toBe(400);
@@ -87,8 +87,8 @@ describe("POST /api/auth/login", () => {
             email: validUser.email,
             password: "WrongPassword"
         });
-        expect(res.status).toBe(400);
-        expect(res.body.message).toBe("Invalid credentials");
+        expect(res.status).toBe(401);
+        expect(res.body.message).toBe("email or password does not match");
     });
     
     it("returns 400 for non-existent email", async () => {
@@ -96,8 +96,8 @@ describe("POST /api/auth/login", () => {
             email: "nonexistent@example.com",
             password: validUser.password
         });
-        expect(res.status).toBe(400);
-        expect(res.body.message).toBe("Invalid credentials");
+        expect(res.status).toBe(401);
+        expect(res.body.message).toBe("email or password does not match");
     });
 
     it("gives a generic error message for invalid credentials", async () => {
@@ -109,8 +109,8 @@ describe("POST /api/auth/login", () => {
             email: "nonexistent@example.com",
             password: validUser.password
         });
-        expect(wrongPass.body.message).toBe("Invalid credentials");
-        expect(wrongEmail.body.message).toBe("Invalid credentials");
-        expect(wrongEmail.body.message).toBe("Invalid credentials");
+        expect(wrongPass.body.message).toBe("email or password does not match");
+        expect(wrongEmail.body.message).toBe("email or password does not match");
+        expect(wrongEmail.body.message).toBe("email or password does not match");
     });
 });
