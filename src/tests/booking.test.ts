@@ -64,3 +64,16 @@ describe("PATCH /api/bookings/:id/accept", () => {
         expect(total).toBe(1);
     });
 });
+
+const makeBooking = (customerId: any, extra: object = {}) =>
+    Booking.create({
+        customer: customerId,
+        serviceType: "plumber",
+        location: { 
+            type: "Point", 
+            coordinates: [85, 27],
+            address: "Kathmandu, Nepal" 
+        },
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
+        ...extra,
+    });
