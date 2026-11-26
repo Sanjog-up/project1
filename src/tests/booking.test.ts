@@ -77,3 +77,31 @@ const makeBooking = (customerId: any, extra: object = {}) =>
         expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
         ...extra,
     });
+
+describe("PATCH /api/bookings/:id/release", () => {
+    it("lets a worker release a booking they have accepted and lower the counter once", async () => {
+        const customer = await makeUser("customer@test.com", Role.USER);
+        const w = await makeWorker("w@test.com");
+        const booking = await makeBooking(customer._id, { 
+            worker: w.user._id, 
+            status: BookingStatus.Accepted });
+            await WorkerProfile.updateOne({ 
+                user: w.user._id }, 
+                { $set: { scheduledJobsCount: 2 } });
+
+        const release = () => request(app)
+            .patch(`/api/bookings/${booking._id}/release`)
+            .set("Authorization", `Bearer ${w.token}`);
+
+        expect((await release()).status).toBe(200);
+        expect((await release()).status).toBe(409);
+
+        const updated = await Booking.findById(booking._id);
+        expect(updated!.status).toBe(BookingStatus.Requested);
+        expect(updated!.worker).toBeUndefined();
+
+        const profile = await WorkerProfile.findOne({ user: w.user._id });
+        expect(profile!.scheduledJobsCount).toBe(1);
+    });
+});
+
