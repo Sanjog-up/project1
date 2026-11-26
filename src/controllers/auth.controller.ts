@@ -182,7 +182,7 @@ export const beWorker = catchAsync(async (req: Request, res: Response) => {
     isActive: true,
   })
     .lean()
-    .select("slug");
+    .select("slug requireLicense");
 
   if (validServices.length !== cleanedSkills.length) {
     const validSlugs = validServices.map((s) => s.slug);

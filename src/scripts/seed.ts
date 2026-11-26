@@ -7,11 +7,11 @@ import { Role } from "../types/enum.types";
 import { hashPassword } from "../utils/bcrypt.utils";
 
 const services = [
-    { name: "Plumbing", slug: "plumbing", price: 800, description: "Fixing leaks, installing pipes, and other plumbing services." },
-    { name: "Electrical", slug: "electrical", price: 800, description: "Wiring, lighting installation, and other electrical services." },
-    { name: "Cleaning", slug: "cleaning", price: 800, description: "House cleaning, office cleaning, and other cleaning services." },
-    { name: "Carpentry", slug: "carpentry", price: 800, description: "Furniture making, repairs, and other carpentry services." },
-    { name: "Painting", slug: "painting", price: 800, description: "Interior and exterior painting services." },
+    { name: "Plumbing", slug: "plumbing", price: 800, requireLicense: true, description: "Fixing leaks, installing pipes, and other plumbing services." },
+    { name: "Electrical", slug: "electrical", price: 800, requireLicense: true, description: "Wiring, lighting installation, and other electrical services." },
+    { name: "Cleaning", slug: "cleaning", price: 800, requireLicense: false, description: "House cleaning, office cleaning, and other cleaning services." },
+    { name: "Carpentry", slug: "carpentry", price: 800, requireLicense: true, description: "Furniture making, repairs, and other carpentry services." },
+    { name: "Painting", slug: "painting", price: 800, requireLicense: false, description: "Interior and exterior painting services." },
 ];
 
 const run = async () => {
