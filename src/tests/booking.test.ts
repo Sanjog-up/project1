@@ -105,3 +105,30 @@ describe("PATCH /api/bookings/:id/release", () => {
     });
 });
 
+describe("PATCH /api/bookings/:id/cancel", () => {
+    it("lets a customer cancel their booking and lower the counter if a worker was assigned", async () => {
+        const customer = await makeUser("customer@test.com", Role.USER);
+        const w = await makeWorker("w!@gmail.com");
+        const booking = await makeBooking(customer._id, { 
+            worker: w.user._id,
+            status: BookingStatus.Accepted 
+        });
+        await WorkerProfile.updateOne({ 
+            user: w.user._id }, 
+            { $set: { scheduledJobsCount: 2 } });
+
+        const cancel =  await request(app)
+            .patch(`/api/bookings/${booking._id}/cancel`)
+            .set("Authorization", `Bearer ${generateJwtToken(customer._id)}`)
+            .send({ reason: "Change of plans" })
+
+        expect(cancel.status).toBe(200);
+        const updated = await Booking.findById(booking._id);
+        expect(updated!.status).toBe(BookingStatus.Cancelled);
+        expect(updated!.cancelledBy).toBe("User");
+
+        const profile = await WorkerProfile.findOne({ user: w.user._id });
+        expect(profile!.scheduledJobsCount).toBe(1);
+    });
+});
+
