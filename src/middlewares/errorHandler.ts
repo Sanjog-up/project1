@@ -63,6 +63,10 @@ export const errorHandler = (
     message = `Invalid ${error.path}: ${error.value}.`;
   }
 
+  error.code === "LIMIT_FILE_SIZE"
+    ? "File size is too large. Maximum limit is 5MB."
+    : error.message;
+
   if (statusCode >= 500 && process.env.NODE_ENV === "production") {
     message = "Internal Server Error. Please try again later.";
   }

@@ -59,7 +59,7 @@ export const multerUploader = ({
       cb(null, true);
     } else {
       const error = new AppError(
-        `Only image (png, jpg,jpeg and webp) and pdf are allowed`,
+        `Only ${allowPdf ? "png, jpg, jpeg, webp and pdf" : "png, jpg, jpeg and webp"} files are allowed`,
         400,
       );
       cb(error);

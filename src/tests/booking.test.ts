@@ -22,7 +22,7 @@ const makeWorker = async(email: string) => {
         user: user._id, 
         citizenshipBack: fakeDoc,
         citizenshipFront: fakeDoc,
-        skills: ["plumber"],
+        skills: ["plumbing"],
         experience: 2,
         bio: "Experienced plumber with two years of work",
         isVerified: true,
@@ -39,7 +39,7 @@ describe("PATCH /api/bookings/:id/accept", () => {
 
         const booking = await Booking.create({
             customer: customer._id,
-            serviceType: "plumber",
+            serviceType: "plumbing",
             location: { 
                 type: "Point", 
                 coordinates: [85, 27],
